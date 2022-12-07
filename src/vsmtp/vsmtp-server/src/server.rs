@@ -252,7 +252,7 @@ impl Server {
     ///
     /// # Errors
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip_all, err, fields(uuid = %args.uuid))]
+    #[tracing::instrument(skip_all, err(Debug), fields(uuid = %args.uuid))]
     pub async fn run_session(
         args: AcceptArgs,
         tcp_stream: tokio::net::TcpStream,

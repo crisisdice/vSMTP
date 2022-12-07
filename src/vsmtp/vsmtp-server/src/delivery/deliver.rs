@@ -85,7 +85,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
 /// * failed to add trace data to the email.
 /// * failed to copy the email to other queues or remove it from the delivery queue.
 #[allow(clippy::too_many_lines)]
-#[tracing::instrument(name = "delivery", skip_all, err, fields(uuid = %process_message.message_uuid))]
+#[tracing::instrument(name = "delivery", skip_all, err(Debug), fields(uuid = %process_message.message_uuid))]
 pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,

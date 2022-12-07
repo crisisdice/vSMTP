@@ -65,7 +65,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     }
 }
 
-#[tracing::instrument(name = "deferred", skip_all, err, fields(uuid = %process_message.message_uuid))]
+#[tracing::instrument(name = "deferred", skip_all, err(Debug), fields(uuid = %process_message.message_uuid))]
 async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,

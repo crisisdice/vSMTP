@@ -61,7 +61,7 @@ impl SubDomainHierarchy {
     ///
     /// # Errors
     /// * Failed to compile scripts.
-    #[tracing::instrument(skip(engine), err)]
+    #[tracing::instrument(skip(engine), err(Debug))]
     pub fn new(engine: &rhai::Engine, path: &std::path::Path) -> anyhow::Result<Self> {
         let mut hierarchy = std::collections::BTreeMap::new();
 
@@ -151,7 +151,7 @@ impl SubDomainHierarchy {
     }
 
     /// Create rules from a path, use a default script if the default path could not be loaded
-    #[tracing::instrument(skip(engine, default), err)]
+    #[tracing::instrument(skip(engine, default), err(Debug))]
     fn rules_from_path_or_default(
         engine: &rhai::Engine,
         path: &std::path::Path,
