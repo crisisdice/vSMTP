@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-auth"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -24,11 +24,11 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-serde = { version = "1.0.147", default-features = false, features = [
+serde = { version = "1.0.149", default-features = false, features = [
     "std",
     "derive",
 ] }
