@@ -4236,6 +4236,7 @@ name = "vsmtp-rule-engine"
 version = "1.4.0-rc.16"
 dependencies = [
  "anyhow",
+ "criterion",
  "either",
  "hostname",
  "humantime-serde",
