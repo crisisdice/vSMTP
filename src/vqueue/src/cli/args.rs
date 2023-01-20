@@ -15,8 +15,6 @@
  *
  */
 use crate::QueueID;
-/// unused imports: `Terminal`, `backend::CrosstermBackend`
-use tui::{backend::CrosstermBackend, Terminal};
 
 ///
 #[non_exhaustive]
