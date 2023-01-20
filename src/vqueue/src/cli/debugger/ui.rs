@@ -17,12 +17,13 @@
 use crate::cli::args::Commands;
 use tui::{
     backend::CrosstermBackend,
-    widgets::{Widget, Block, Borders},
-    layout::{Layout, Constraint, Direction},
-    Terminal
+    widgets::{Block, Borders},
+    //layout::{Layout, Constraint, Direction},
+    Terminal,
+    //Frame,
 };
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    //event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -32,18 +33,19 @@ impl Commands {
     pub fn ui() -> Result<(), std::io::Error> {
         enable_raw_mode()?;
         let mut stdout = std::io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        execute!(stdout, EnterAlternateScreen)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         
         terminal.draw(|f| {
             let size = f.size();
             let block = Block::default()
-                .title("Block")
+                .title("Running vqueue (/var/spool/vsmtp)")
                 .borders(Borders::ALL);
             f.render_widget(block, size);
+            
         })?;
-        
+        // remplacer par echap ou ctrl + c 
         std::thread::sleep(std::time::Duration::from_millis(5000));
 
         // restore terminal
@@ -51,7 +53,6 @@ impl Commands {
         execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture
         )?;
         terminal.show_cursor()?;
 
