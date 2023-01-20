@@ -15,6 +15,8 @@
  *
  */
 use crate::QueueID;
+/// unused imports: `Terminal`, `backend::CrosstermBackend`
+use tui::{backend::CrosstermBackend, Terminal};
 
 ///
 #[non_exhaustive]
@@ -58,6 +60,8 @@ pub enum Commands {
         #[clap(subcommand)]
         command: MessageCommand,
     },
+    /// Have a user-friendly dashboard for queue administration & debugging
+    Ui {},
 }
 
 fn parse_uuid(value: &str) -> Result<uuid::Uuid, clap::Error> {
@@ -90,6 +94,7 @@ pub enum MessageCommand {
     },
     /// Re-introduce the message in the delivery system
     ReRun {},
+    
 }
 
 ///

@@ -60,6 +60,8 @@ pub mod cli {
         pub mod message_show;
         ///
         pub mod show;
+        ///
+        pub mod ui;
     }
 }
 

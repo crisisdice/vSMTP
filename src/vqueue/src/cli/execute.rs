@@ -65,7 +65,12 @@ impl Commands {
                 }
                 #[allow(clippy::unimplemented)]
                 MessageCommand::ReRun {} => unimplemented!(),
+                
             },
+            Commands::Ui {} => {
+                Self::ui();
+                Ok(())
+            }
         }
     }
 }
