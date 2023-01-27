@@ -76,6 +76,14 @@ impl Commands {
             }) => {
                 // ici faire la selection entre les différentes QUEUE
             },
+            Event::Key(KeyEvent{
+                code: KeyCode::Down,
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::NONE
+            }) => {
+                // ici faire la selection entre les différentes QUEUE
+            },
             _ =>{}
         };
     Ok(())
