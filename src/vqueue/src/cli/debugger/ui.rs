@@ -23,14 +23,21 @@ use tui::{
     //Frame,
 };
 use crossterm::{
-    //event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{read, Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     /// setup crossterm terminal 
-    pub fn ui() -> Result<(), std::io::Error> {
+    /// # Errors
+    /// possible error with terminal
+    /// # Panics
+    /// 
+    /// TODO
+    /// 
+    #[inline] pub fn ui() -> Result<(), std::io::Error> {
+        // crate terminal
         enable_raw_mode()?;
         let mut stdout = std::io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
@@ -45,17 +52,32 @@ impl Commands {
             f.render_widget(block, size);
             
         })?;
-        // remplacer par echap ou ctrl + c 
-        std::thread::sleep(std::time::Duration::from_millis(5000));
-
-        // restore terminal
-        disable_raw_mode()?;
-        execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        )?;
-        terminal.show_cursor()?;
-
-        Ok(())
+        // replace by event key escape
+        match read().unwrap() {
+            Event::Key(KeyEvent{
+                code: KeyCode::Esc,
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::NONE
+            }) => {
+                // restore terminal
+                disable_raw_mode()?;
+                execute!(
+                terminal.backend_mut(),
+                LeaveAlternateScreen,
+                )?;
+                terminal.show_cursor()?;
+            },
+            Event::Key(KeyEvent{
+                code: KeyCode::Up,
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::NONE
+            }) => {
+                // ici faire la selection entre les différentes QUEUE
+            },
+            _ =>{}
+        };
+    Ok(())
     }
 }

@@ -68,7 +68,7 @@ impl Commands {
                 
             },
             Commands::Ui {} => {
-                Self::ui();
+                Self::ui().expect("UI DIDN'T WORK");
                 Ok(())
             }
         }
