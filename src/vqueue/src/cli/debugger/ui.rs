@@ -17,6 +17,7 @@
 use crate::cli::args::Commands;
 use crate::{GenericQueueManager, QueueID};
 extern crate alloc;
+use crossterm::event;
 
 use tui::{
     backend::CrosstermBackend,
@@ -75,7 +76,6 @@ impl Commands {
             let deliver_list = queue_manager.list(&QueueID::Deliver);
             let working_list = queue_manager.list(&QueueID::Working);
             terminal.draw(|f| {
-                let size = f.size();
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
                     .margin(2)
@@ -129,65 +129,22 @@ impl Commands {
                     }
                 };
             })?;
-            match read().unwrap() {
-            Event::Key(KeyEvent{
-                code: KeyCode::Esc,
-                modifiers: KeyModifiers::NONE,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE
-            }) => {
-                // restore terminal
-                disable_raw_mode()?;
-                execute!(
-                terminal.backend_mut(),
-                LeaveAlternateScreen,
-                )?;
-                terminal.show_cursor()?;
-            },
-            Event::Key(KeyEvent{
-                code: KeyCode::Char('v'),
-                modifiers: KeyModifiers::NONE,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE
-            }) => {
-                active_menu_item = MenuItem::Vqueue;
-
-            },
-            Event::Key(KeyEvent{
-                code: KeyCode::Char('h'),
-                modifiers: KeyModifiers::NONE,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE
-            }) => {
-                active_menu_item = MenuItem::Home;
-
-            },
-            Event::Key(KeyEvent{
-                code: KeyCode::Up,
-                modifiers: KeyModifiers::NONE,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE
-            }) => {
-                // ici faire la selection entre les différentes QUEUE
-            },
-            Event::Key(KeyEvent{
-                code: KeyCode::Down,
-                modifiers: KeyModifiers::NONE,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE
-            }) => {
-                // ici faire la selection entre les différentes QUEUE
-            },
-            Event::Key(KeyEvent{
-                code: KeyCode::Enter,
-                modifiers: KeyModifiers::NONE,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::NONE
-            }) => {
-                // ici entré dans une VQUEUE et voir les différents mail qui la composent
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Esc => {
+                        // restore terminal
+                        disable_raw_mode()?;
+                        execute!(
+                        terminal.backend_mut(),
+                        LeaveAlternateScreen,
+                        )?;
+                        terminal.show_cursor()?;
+                    }
+                    KeyCode::Char('v') => active_menu_item = MenuItem::Vqueue,
+                    KeyCode::Char('h') => active_menu_item = MenuItem::Home,
+                    _ =>{}
+                }
             }
-            _ =>{}
-        }
         };
     Ok(())
     }
