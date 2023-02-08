@@ -16,8 +16,8 @@
  */
 use crate::cli::args::Commands;
 use crate::{GenericQueueManager, QueueID};
-extern crate alloc;
 use crossterm::event;
+extern crate alloc;
 
 use tui::{
     backend::CrosstermBackend,
@@ -28,7 +28,7 @@ use tui::{
     Terminal,
 };
 use crossterm::{
-    event::{read, Event, KeyCode, KeyEvent, KeyModifiers, KeyEventKind, KeyEventState},
+    event::{Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -40,7 +40,7 @@ enum MenuItem {
 
 impl From<MenuItem> for usize {
     #[inline]
-    fn from(input: MenuItem) -> usize {
+    fn from(input: MenuItem) -> Self {
         match input {
             MenuItem::Home => 0,
             MenuItem::Vqueue => 1,
@@ -69,7 +69,7 @@ impl Commands {
         let mut terminal = Terminal::new(backend)?;
         
         loop {
-            let queue: [ListItem; 5] = [ListItem::new("Dead"), ListItem::new("Deffered"), ListItem::new("Delegated"), ListItem::new("Deliver"), ListItem::new("Working")];
+            let queue: [ListItem<'_>; 5] = [ListItem::new("Dead"), ListItem::new("Deffered"), ListItem::new("Delegated"), ListItem::new("Deliver"), ListItem::new("Working")];
             let dead_list = queue_manager.list(&QueueID::Dead);
             let deffered_list = queue_manager.list(&QueueID::Deferred);
             let delegated_list = queue_manager.list(&QueueID::Delegated);

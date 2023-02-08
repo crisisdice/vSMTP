@@ -67,7 +67,7 @@ impl Commands {
                 MessageCommand::ReRun {} => unimplemented!(),
                 
             },
-            Commands::Ui {} => {
+            Self::Ui {} => {
                 Self::ui(&queue_manager).expect("UI DIDN'T WORK");
                 Ok(())
             }
