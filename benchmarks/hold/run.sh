@@ -13,3 +13,8 @@ function run_vsmtp() {
     sudo systemctl stop vsmtp
     rm -rf /var/spool/vsmtp/
 }
+
+smtp-sink -c 127.0.0.1:10025 100000
+
+run_postfix
+run_vsmtp
