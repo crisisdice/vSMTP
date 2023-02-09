@@ -16,18 +16,18 @@
  */
 use crate::cli::args::Commands;
 use crate::{GenericQueueManager, QueueID};
-use crossterm::event;
 extern crate alloc;
 
 use tui::{
     backend::CrosstermBackend,
-    widgets::{Block, Borders, BorderType, Tabs, Paragraph, List, ListItem},
+    widgets::{Block, Borders, BorderType, Tabs, Paragraph, List, ListItem, ListState},
     layout::{Layout, Constraint, Direction, Alignment},
     text::{Span, Spans},
     style::{Color, Modifier, Style},
     Terminal,
 };
 use crossterm::{
+    event,
     event::{Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -45,6 +45,48 @@ impl From<MenuItem> for usize {
             MenuItem::Home => 0,
             MenuItem::Vqueue => 1,
         }
+    }
+}
+struct QueueList<'a> {
+    state: ListState,
+    queues: Vec<ListItem<'a>>,
+}
+impl<'a> QueueList<'a> {
+    fn new(queues: Vec<ListItem>) -> QueueList {
+        QueueList { 
+            state: ListState::default(),
+            queues,
+        }
+    }
+    fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.queues.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+    fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.queues.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    fn unselect(&mut self) {
+        self.state.select(None);
     }
 }
 
@@ -67,9 +109,15 @@ impl Commands {
         execute!(stdout, EnterAlternateScreen)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
-        
+
+        let mut queue_list = QueueList::new(vec![
+            ListItem::new("Dead"),
+            ListItem::new("Deferred"),
+            ListItem::new("Delegated"),
+            ListItem::new("Deliver"),
+            ListItem::new("Working"),
+        ]);
         loop {
-            let queue: [ListItem<'_>; 5] = [ListItem::new("Dead"), ListItem::new("Deffered"), ListItem::new("Delegated"), ListItem::new("Deliver"), ListItem::new("Working")];
             let dead_list = queue_manager.list(&QueueID::Dead);
             let deffered_list = queue_manager.list(&QueueID::Deferred);
             let delegated_list = queue_manager.list(&QueueID::Delegated);
@@ -115,8 +163,8 @@ impl Commands {
                     MenuItem::Home => {
                         f.render_widget(Self::home_page(), chunks[1]);
                     }
-                    MenuItem::Vqueue => {
-                        let queue_list = List::new(queue)
+                    MenuItem::Vqueue => {    
+                        let list = List::new(queue_list.queues.clone())
                             .block(Block::default().borders(Borders::ALL).title("Vqueue"))
                             .highlight_style(
                                 Style::default()
@@ -125,7 +173,7 @@ impl Commands {
                             )
                             .highlight_symbol(">> ");
                         // We can now render the item list
-                        f.render_widget(queue_list, chunks[1]);
+                        f.render_stateful_widget(list, chunks[1], &mut queue_list.state);
                     }
                 };
             })?;
@@ -142,6 +190,9 @@ impl Commands {
                     }
                     KeyCode::Char('v') => active_menu_item = MenuItem::Vqueue,
                     KeyCode::Char('h') => active_menu_item = MenuItem::Home,
+                    KeyCode::Left => queue_list.unselect(),
+                    KeyCode::Up => queue_list.previous(),
+                    KeyCode::Down => queue_list.next(),
                     _ =>{}
                 }
             }
