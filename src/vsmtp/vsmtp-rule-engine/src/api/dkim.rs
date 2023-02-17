@@ -27,16 +27,102 @@ use vsmtp_auth::dkim::{
     sign, verify, Canonicalization, PrivateKey, PublicKey, Signature, VerificationResult,
     VerifierError,
 };
+use vsmtp_common::Domain;
 use vsmtp_mail_parser::MessageBody;
 
 pub use dkim::*;
+
+#[derive(Debug)]
+struct SignatureParams {
+    sdid: Option<String>,
+    selector: String,
+    private_key: std::sync::Arc<PrivateKey>,
+    headers_field: Option<Vec<String>>,
+    canonicalization: Option<Canonicalization>,
+}
+
+impl TryFrom<rhai::Map> for SignatureParams {
+    type Error = Box<rhai::EvalAltResult>;
+
+    fn try_from(value: rhai::Map) -> Result<Self, Self::Error> {
+        let mut sdid = None;
+        let mut selector = None;
+        let mut private_key = None;
+        let mut headers_field = None;
+        let mut canonicalization = None;
+
+        for (key, value) in value {
+            let value_type_name = value.type_name();
+            match key.as_ref() {
+                "sdid" => {
+                    sdid = Some(value.into_string()?);
+                }
+                "selector" => {
+                    selector = Some(value.into_string()?);
+                }
+                "private_key" => {
+                    private_key = Some(value.try_cast::<rhai::Shared<PrivateKey>>().ok_or_else(
+                        || {
+                            Box::new(rhai::EvalAltResult::ErrorMismatchDataType(
+                                "Arc<PrivateKey>".to_string(),
+                                value_type_name.to_string(),
+                                rhai::Position::NONE,
+                            ))
+                        },
+                    )?);
+                }
+                "headers_field" => {
+                    headers_field = Some(
+                        value
+                            .into_array()?
+                            .into_iter()
+                            .map(rhai::Dynamic::into_string)
+                            .collect::<Result<Vec<_>, _>>()?,
+                    );
+                }
+                "canonicalization" => {
+                    canonicalization = Some(value.into_string()?.parse().map_err(|_| {
+                        Box::new(rhai::EvalAltResult::ErrorMismatchDataType(
+                            "Canonicalization".to_string(),
+                            value_type_name.to_string(),
+                            rhai::Position::NONE,
+                        ))
+                    })?);
+                }
+                otherwise => {
+                    return Err(Box::new(rhai::EvalAltResult::ErrorPropertyNotFound(
+                        otherwise.to_string(),
+                        rhai::Position::NONE,
+                    )))
+                }
+            }
+        }
+
+        Ok(Self {
+            sdid,
+            selector: selector.ok_or_else(|| {
+                Box::new(rhai::EvalAltResult::ErrorParsing(
+                    rhai::ParseErrorType::VariableUndefined("selector".to_string()),
+                    rhai::Position::NONE,
+                ))
+            })?,
+            private_key: private_key.ok_or_else(|| {
+                Box::new(rhai::EvalAltResult::ErrorParsing(
+                    rhai::ParseErrorType::VariableUndefined("private_key".to_string()),
+                    rhai::Position::NONE,
+                ))
+            })?,
+            headers_field,
+            canonicalization,
+        })
+    }
+}
 
 /// Generate and verify DKIM signatures.
 /// Implementation of RFC 6376. (<https://www.rfc-editor.org/rfc/rfc6376.html>)
 #[rhai::plugin::export_module]
 mod dkim {
     /// Has the `ctx()` a DKIM signature verification result ?
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "has_result", return_raw)]
     pub fn has_result(ncc: NativeCallContext) -> EngineResult<bool> {
         super::Impl::has_dkim_result(&get_global!(ncc, ctx)?)
@@ -44,7 +130,6 @@ mod dkim {
 
     /// Return the DKIM signature verification result in the `ctx()` or
     /// an error if no result is found.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "result", return_raw)]
     pub fn result(ncc: NativeCallContext) -> EngineResult<rhai::Map> {
         super::Impl::dkim_result(&get_global!(ncc, ctx)?)
@@ -54,14 +139,12 @@ mod dkim {
     ///
     /// # Error
     /// * The `status` field is missing in the DKIM verification results.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw)]
     pub fn store(ncc: NativeCallContext, result: rhai::Map) -> EngineResult<()> {
         super::Impl::store(&get_global!(ncc, ctx)?, &result)
     }
 
     /// Get the list of DKIM private keys associated with this sdid
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw)]
     pub fn get_private_keys(ncc: NativeCallContext, sdid: &str) -> EngineResult<rhai::Array> {
         let server = get_global!(ncc, srv)?;
@@ -69,7 +152,11 @@ mod dkim {
             .config
             .server
             .r#virtual
-            .get(sdid)
+            .get(
+                &sdid
+                    .parse::<Domain>()
+                    .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
+            )
             .and_then(|r#virtual| r#virtual.dkim.as_ref())
             .map(|dkim| {
                 dkim.private_key
@@ -144,8 +231,7 @@ mod dkim {
     /// "#;
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
-    /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// #    |builder| Ok(builder.add_root_filter_rules(r#"
+    /// # let rules = r#"
     /// #{
     ///     preq: [
     ///         rule "verify dkim" || {
@@ -169,7 +255,15 @@ mod dkim {
     ///         }
     ///    ]
     ///  }
-    /// # "#)?.build()), Some(msg));
+    /// # "#;
+    /// # let states = vsmtp_test::vsl::run_with_msg(|builder| Ok(builder
+    /// #   .add_root_filter_rules("#{}")?
+    /// #      .add_domain_rules("testserver.com".parse().unwrap())
+    /// #        .with_incoming(rules)?
+    /// #        .with_outgoing(rules)?
+    /// #        .with_internal(rules)?
+    /// #      .build()
+    /// #   .build()), Some(msg));
     /// # use vsmtp_common::{status::Status, CodeID};
     /// # use vsmtp_rule_engine::ExecutionStage;
     /// # assert_eq!(states[&ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
@@ -223,7 +317,7 @@ mod dkim {
     /// "#;
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
-    /// let rules = r#"#{
+    /// # let rules = r#"#{
     ///     preq: [
     ///         rule "verify dkim" || {
     ///             dkim::verify();
@@ -235,16 +329,20 @@ mod dkim {
     ///             state::accept();
     ///         }
     ///     ]
-    /// }"#;
-    ///
-    /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// #   |builder| Ok(builder.add_root_filter_rules(rules)?.build()), Some(msg)
-    /// # );
+    /// }
+    /// # "#;
+    /// # let states = vsmtp_test::vsl::run_with_msg(|builder| Ok(builder
+    /// #   .add_root_filter_rules("#{}")?
+    /// #      .add_domain_rules("testserver.com".parse().unwrap())
+    /// #        .with_incoming(rules)?
+    /// #        .with_outgoing(rules)?
+    /// #        .with_internal(rules)?
+    /// #      .build()
+    /// #   .build()), Some(msg));
     /// # use vsmtp_common::{status::Status, CodeID};
     /// # use vsmtp_rule_engine::ExecutionStage;
     /// # assert_eq!(states[&ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw)]
     pub fn verify(ncc: NativeCallContext) -> EngineResult<rhai::Map> {
         let ctx = get_global!(ncc, ctx)?;
@@ -264,7 +362,9 @@ mod dkim {
         let header_value = format!(
             r#"{};
  dkim={}`"#,
-            crate::api::utils::get_root_domain(vsl_guard_ok!(ctx.read()).server_name()),
+            crate::api::utils::get_root_domain(
+                &vsl_guard_ok!(ctx.read()).server_name().to_string()
+            ),
             result
                 .get("status")
                 .map(std::string::ToString::to_string)
@@ -296,73 +396,37 @@ mod dkim {
     /// #{
     ///   preq: [
     ///     action "sign dkim" || {
-    ///       dkim::sign("2022-09", private_key, ["From", "To", "Date", "Subject", "From"], "simple/relaxed");
-    ///     },
+    ///       for private_key in dkim::get_private_keys("testserver.com") {
+    ///         dkim::sign(#{
+    ///            // default: server_name()
+    ///            sdid:                "testserver.com",
+    ///
+    ///            // mandatory
+    ///            selector:            "2022-09",
+    ///
+    ///            // mandatory
+    ///            private_key:         private_key,
+    ///
+    ///            // default: ["From", "To", "Date", "Subject", "From"]
+    ///            headers:             ["From", "To", "Date", "Subject", "From"],
+    ///
+    ///            // default: "simple/relaxed"
+    ///            canonicalization:    "simple/relaxed"
+    ///         });
+    ///       }
+    ///     }
     ///   ]
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "sign", return_raw)]
-    pub fn sign(
-        ncc: NativeCallContext,
-        selector: &str,
-        private_key: std::sync::Arc<PrivateKey>,
-        headers_field: rhai::Array,
-        canonicalization: &str,
-    ) -> EngineResult<()> {
+    pub fn sign(ncc: NativeCallContext, params: rhai::Map) -> EngineResult<()> {
         let signature = vsl_generic_ok!(super::Impl::generate_signature(
             &*vsl_guard_ok!(get_global!(ncc, msg)?.read()),
-            vsl_guard_ok!(get_global!(ncc, ctx)?.read()).server_name(),
-            selector,
-            &private_key,
-            &headers_field,
-            canonicalization,
+            &*vsl_guard_ok!(get_global!(ncc, ctx)?.read()),
+            SignatureParams::try_from(params)?,
         ));
 
         crate::api::message::prepend_header(ncc, "DKIM-Signature", &signature)
-    }
-
-    /// Produce a `DKIM-Signature` header.
-    /// Uses the "From", "To", "Date" and "Subject" headers to sign with the simple/relaxed policy.
-    ///
-    /// # Args
-    ///
-    /// * `selector` - the DNS selector to expose the public key & for the verifier
-    /// * `private_key` - the private key to sign the mail,
-    ///     associated with the public key in the `selector._domainkey.sdid` DNS record
-    ///
-    /// # Effective smtp stage
-    ///
-    /// `preq` and onwards.
-    ///
-    /// # Example
-    ///
-    /// ```text
-    /// #{
-    ///   preq: [
-    ///     action "sign dkim" || {
-    ///       dkim::sign("2022-09", private_key);
-    ///     },
-    ///   ]
-    /// }
-    /// ```
-    #[rhai_fn(name = "sign", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn sign_with_default_headers_and_policy(
-        ncc: NativeCallContext,
-        selector: &str,
-        private_key: std::sync::Arc<PrivateKey>,
-    ) -> EngineResult<()> {
-        sign(
-            ncc,
-            selector,
-            private_key,
-            ["From", "To", "Date", "Subject", "From"]
-                .into_iter()
-                .map(rhai::Dynamic::from)
-                .collect::<rhai::Array>(),
-            "simple/relaxed",
-        )
     }
 }
 
@@ -450,12 +514,9 @@ impl From<DkimErrors> for Box<rhai::EvalAltResult> {
     }
 }
 
-///
-pub struct Impl;
+pub(super) struct Impl;
 
 impl Impl {
-    /// # Result
-    /// # Errors
     pub fn has_dkim_result(ctx: &Context) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(ctx.read())
             .dkim()
@@ -463,10 +524,6 @@ impl Impl {
             .is_some())
     }
 
-    /// Return the DKIM signature verification result in the `ctx()` or
-    /// an error if no result is found.
-    /// # Result
-    /// # Errors
     pub fn dkim_result(ctx: &Context) -> EngineResult<rhai::Map> {
         vsl_guard_ok!(ctx.read())
             .dkim()
@@ -482,7 +539,6 @@ impl Impl {
             )
     }
 
-    ///
     #[tracing::instrument(ret, err)]
     pub fn parse_signature(input: &str) -> Result<Signature, DkimErrors> {
         <Signature as std::str::FromStr>::from_str(input)
@@ -550,23 +606,23 @@ impl Impl {
     #[tracing::instrument(ret, err)]
     fn generate_signature(
         message: &MessageBody,
-        sdid: &str,
-        selector: &str,
-        private_key: &PrivateKey,
-        headers_field: &rhai::Array,
-        canonicalization: &str,
+        ctx: &vsmtp_common::Context,
+        params: SignatureParams,
     ) -> Result<String, DkimErrors> {
         let signature = sign(
             message.inner(),
-            private_key,
-            sdid.to_string(),
-            selector.to_string(),
-            <Canonicalization as std::str::FromStr>::from_str(canonicalization).map_err(|e| {
-                DkimErrors::InvalidArgument {
-                    inner: e.to_string(),
-                }
-            })?,
-            headers_field.iter().map(ToString::to_string).collect(),
+            &params.private_key,
+            params.sdid.unwrap_or_else(|| ctx.server_name().to_string()),
+            params.selector.to_string(),
+            params
+                .canonicalization
+                .unwrap_or_else(|| "simple/relaxed".parse().expect("default values are valid")),
+            params.headers_field.unwrap_or_else(|| {
+                ["From", "To", "Date", "Subject", "From"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect()
+            }),
         )
         .map_err(|e| DkimErrors::InvalidArgument {
             inner: format!("the signature failed: `{e}`"),
@@ -575,10 +631,6 @@ impl Impl {
         Ok(signature.get_signature_value())
     }
 
-    /// Store the result produced by the DKIM signature verification in the `ctx()`.
-    ///
-    /// # Errors
-    /// * The `status` field is missing in the DKIM verification results.
     pub fn store(ctx: &Context, result: &rhai::Map) -> EngineResult<()> {
         let result = VerificationResult {
             status: result
@@ -592,10 +644,6 @@ impl Impl {
         Ok(vsl_generic_ok!(vsl_guard_ok!(ctx.write()).set_dkim(result)))
     }
 
-    /// Check dkim signatures, return the generated result if it already as been computed.
-    ///
-    /// # Result
-    /// # Errors
     pub fn verify_inner(
         ctx: &Context,
         msg: &Message,
@@ -620,19 +668,6 @@ impl Impl {
         }
     }
 
-    /// Verify and return the first valid signature.
-    ///
-    /// If no valid signature is found, then the function does NOT
-    /// return an error, but a rhai map with an error status.
-    ///
-    /// # Return
-    ///
-    /// A rhai map with a status property, sdid & auid in case the verification
-    /// was successful.
-    ///
-    /// # Errors
-    ///
-    /// * `get_header_untouched` failed.
     #[allow(clippy::cognitive_complexity)]
     fn verify_first_signature_or_error(
         msg: &Message,
@@ -699,7 +734,6 @@ impl Impl {
         )]))
     }
 
-    /// Get the dkim status from an error produced by this module.
     fn get_dkim_error_status(error: &DkimErrors) -> String {
         strum::EnumMessage::get_message(error)
             .expect("`DkimErrors` must have a `message` for each variant")

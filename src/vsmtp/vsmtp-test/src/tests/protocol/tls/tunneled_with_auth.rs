@@ -79,9 +79,10 @@ run_test! {
         let mut config = get_tls_auth_config();
         config.app.vsl.domain_dir = Some("./src/template/sni".into());
         config.server.r#virtual.insert(
-            "testserver.com".to_string(),
+            "testserver.com".parse().unwrap(),
             FieldServerVirtual {
-                tls: Some(
+              is_default: false,
+              tls: Some(
                     FieldServerVirtualTls::from_path(
                         "src/template/certs/certificate.crt",
                         "src/template/certs/private_key.rsa.key",

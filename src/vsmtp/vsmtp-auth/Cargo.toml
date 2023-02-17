@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-auth"
-version = "2.1.0"
+version = "2.1.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.66.1"
@@ -24,7 +24,7 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-mail-parser]
-version = "=2.1.0"
+version = "=2.1.1"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
@@ -35,7 +35,7 @@ anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
-viaspf = { version = "0.5.0", default-features = false, features = ["tokio-timeout", "trust-dns-resolver"] }
+viaspf = { version = "0.5.1", default-features = false, features = ["tokio-timeout", "trust-dns-resolver"] }
 ring-compat = { version = "0.6.0", default-features = false, features = ["std", "alloc", "digest", "signature"] }
 rsa = { version = "0.8.1", default-features = false, features = [
     "std",
