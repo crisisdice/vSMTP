@@ -14,7 +14,7 @@ sudo systemctl start postfix.service
 sudo systemctl start vsmtp.service
 ```
 
-> Before running any of the commands below, make sure that your Postix and vSMTP queues and log directory are empty. If not, make sur to make backups of those directories.
+> Before running any of the commands below, make sure that your Postfix and vSMTP queues and log directory are empty. If not, make sur to make backups of those directories.
 
 `smtp-source` is used to mesure the performances.
 
