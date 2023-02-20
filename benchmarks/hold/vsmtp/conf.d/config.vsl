@@ -1,21 +1,19 @@
 fn on_config(config) {
-  config.server.client_count_max = -1;
+  config.server.name = env("VSMTP_SERVER_NAME");
 
-  config.server.logs.level = [ "info" ];
+	config.server.interfaces = #{
+		addr: [`localhost:${env("VSMTP_PORT")}`],
+		addr_submission: [`localhost:${env("VSMTP_PORT_SUB")}`],
+		addr_submissions: [`localhost:${env("VSMTP_PORT_SUBS")}`],
+	};
 
-  config.server.interfaces = #{
-      addr: ["127.0.0.1:25"],
-      addr_submission: ["127.0.0.1:587"],
-      addr_submissions: ["127.0.0.1:465"],
-  };
+	config.server.logs = #{
+		"filename": "/var/log/vsmtp/benchmarks/hold/vsmtp.log",
+		"level": [ "info" ],
+	};
 
-  config.server.system.thread_pool = #{
-      receiver: 6,
-      processing: 6,
-      delivery: 6,
-  };
+	config.server.queues = "/var/spool/vsmtp/benchmarks/hold/";
+	config.app.vsl.filter_path = "/etc/vsmtp/benchmarks/hold/filter.vsl";
 
-  config.app.vsl.filter_path = "/etc/vsmtp/filter.vsl";
-
-  config
+	config
 }
