@@ -14,16 +14,16 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see https://www.gnu.org/licenses/.
 
-# Download and intalle both vsmtp and postfix.
+# Download and intall both vsmtp and postfix.
 sudo apt install postfix
 
 curl -s https://api.github.com/repos/viridit/vsmtp/releases/latest |
     grep "browser_download_url.*ubuntu22.04_amd64.deb" |
     cut -d : -f 2,3 |
     tr -d \" |
-    wget -qi - >vsmtp.deb
+    wget -qi -
 
-sudo apt install ./vsmtp.deb
+sudo apt install ./vsmtp*
 
 vsmtp --help
 
