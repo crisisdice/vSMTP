@@ -2,11 +2,32 @@
 
 This benchmark mesures time spent on email processing between vSMTP and Postfix when receiving multiple messages with dkim mechanisms setup for both programs.
 
-To reproduce the benchmarks of the root readme, simply add the content from the `vsmtp` directory in `/etc/vsmtp` and the configuration in the `postfix` directory in `/etc/postfix`.
+## Install
+
+Download the latest debian package from the vsmtp repository, then install it via `apt`.
+
+```sh
+apt install -y ./vsmtp.deb
+```
+
+Install Postfix.
+
+```sh
+apt install -y mailutils postfix
+```
+
+When asked for a "mail name", give your full domain name from which you would like mail to come and go, e.g. `example.org`.
+
+Then, copy vsmtp and postfix configurations to their respective files.
 
 > Do not forget to backup any existing configuration for both programs before copying the files.
 
-We used `systemctl` to run postfix & vsmtp as services.
+```
+cp postfix/main.cf /etc/postfix
+cp -f vsmtp/ /etc/vsmtp
+```
+
+You can use `systemctl` to run postfix & vsmtp as services.
 
 ```sh
 sudo systemctl start postfix.service
@@ -14,14 +35,12 @@ sudo systemctl start postfix.service
 sudo systemctl start vsmtp.service
 ```
 
-> Before running any of the commands below, make sure that your Postfix and vSMTP queues and log directory are empty. If not, make sur to make backups of those directories.
+## Run benchmarks
 
-`smtp-source` is used to mesure the performances.
+`smtp-source` is used to simulate email traffic, and `smtp-sink` is used to act as a receiving server. Both of those programs
+are packaged with postfix.
 
-```sh
-# smtp-source is included with postfix.
-sudo apt install postfix
-```
+> Before running any of the commands below, make sure that your Postfix and vSMTP queues and log directory are empty. If not, make sur to make backups of those directories, located in `/var/spool`.
 
 You can use the following command to simulate incoming clients.
 
@@ -39,14 +58,4 @@ For example:
 
 ```sh
 time smtp-source -s 4 -l 1000000 -m 10000 -f john.doe@example.com -N -t jane.doe@example.com 127.0.0.1:25
-```
-
-Do not forget to empty all queues between each run of `smtp-source`, as they might clog up your filesystem really fast.
-
-```sh
-# Empty vsmtp's spool.
-rm -rf /var/spool/vsmtp/
-
-# Empty postfix's hold queue.
-rm /var/spool/postfix/hold/*
 ```
