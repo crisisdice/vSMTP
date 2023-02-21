@@ -1,10 +1,10 @@
 fn on_config(config) {
-	config.server.name = env("VSMTP_SERVER_NAME");
+	config.server.name = if env("VSMTP_SERVER_NAME") != () { env("VSMTP_SERVER_NAME") } else { "example.com" };
 
 	config.server.interfaces = #{
-		addr: [`localhost:${env("VSMTP_PORT")}`],
-		addr_submission: [`localhost:${env("VSMTP_PORT_SUB")}`],
-		addr_submissions: [`localhost:${env("VSMTP_PORT_SUBS")}`],
+		addr: [`localhost:${if env("VSMTP_PORT") != () { env("VSMTP_PORT") } else { 25 }}`],
+		addr_submission: [`localhost:${if env("VSMTP_PORT_SUB") != () { env("VSMTP_PORT_SUB") } else { 465 }}`],
+		addr_submissions: [`localhost:${if env("VSMTP_PORT_SUBS") != () { env("VSMTP_PORT_SUBS") } else { 587 }}`],
 	};
 
 	config.server.dkim.private_key = env("VSMTP_DKIM_PRIVATE_KEYS");
@@ -14,7 +14,7 @@ fn on_config(config) {
 		"level": [ "info" ],
 	};
 
-	config.server.queues = "/var/spool/vsmtp/benchmarks/dkim-dmarc/";
+	config.server.queues.dirpath = "/var/spool/vsmtp/benchmarks/dkim-dmarc/";
 	config.app.vsl.filter_path = "/etc/vsmtp/benchmarks/dkim-dmarc/filter.vsl";
 
 	config
