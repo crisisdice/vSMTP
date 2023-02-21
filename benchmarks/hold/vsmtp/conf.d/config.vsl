@@ -1,5 +1,5 @@
 fn on_config(config) {
-  config.server.name = if env("VSMTP_SERVER_NAME") != () { env("VSMTP_SERVER_NAME") } else { "example.com" };
+  config.server.name = if env("VSMTP_SERVER_NAME") != () { env("VSMTP_SERVER_NAME") } else { "smtp.example.com" };
 
 	config.server.interfaces = #{
 		addr: [`localhost:${if env("VSMTP_PORT") != () { env("VSMTP_PORT") } else { 25 }}`],
@@ -13,7 +13,16 @@ fn on_config(config) {
 	};
 
 	config.server.queues.dirpath = "/var/spool/vsmtp/benchmarks/hold/";
-	config.app.vsl.filter_path = "/etc/vsmtp/benchmarks/hold/filter.vsl";
+	config.app = #{
+		dirpath: "/var/spool/vsmtp/benchmarks/hold/",
+		"logs": #{
+			"filename": "/var/log/vsmtp/benchmarks/hold/app.log",
+		},
+		vsl: #{
+			filter_path: "/etc/vsmtp/benchmarks/hold/filter.vsl",
+		}
+	};
+
 
 	config
 }

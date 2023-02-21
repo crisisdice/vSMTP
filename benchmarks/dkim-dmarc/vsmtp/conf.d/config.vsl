@@ -1,5 +1,5 @@
 fn on_config(config) {
-	config.server.name = if env("VSMTP_SERVER_NAME") != () { env("VSMTP_SERVER_NAME") } else { "example.com" };
+	config.server.name = if env("VSMTP_SERVER_NAME") != () { env("VSMTP_SERVER_NAME") } else { "smtp.example.com" };
 
 	config.server.interfaces = #{
 		addr: [`localhost:${if env("VSMTP_PORT") != () { env("VSMTP_PORT") } else { 25 }}`],
@@ -15,7 +15,15 @@ fn on_config(config) {
 	};
 
 	config.server.queues.dirpath = "/var/spool/vsmtp/benchmarks/dkim-dmarc/";
-	config.app.vsl.filter_path = "/etc/vsmtp/benchmarks/dkim-dmarc/filter.vsl";
+	config.app = #{
+		dirpath: "/var/spool/vsmtp/benchmarks/dkim-dmarc/",
+		"logs": #{
+			"filename": "/var/log/vsmtp/benchmarks/dkim-dmarc/app.log",
+		},
+		vsl: #{
+			filter_path: "/etc/vsmtp/benchmarks/dkim-dmarc/filter.vsl",
+		}
+	};
 
 	config
 }
