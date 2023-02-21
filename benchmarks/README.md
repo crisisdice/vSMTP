@@ -33,3 +33,47 @@ Once the container has started and the shell is up, use the following commands t
 cd benchmarks
 ./install.sh
 ```
+
+### Run benchmarks
+
+```
+# Size (MB)	0.1
+# Msg	100000
+./run.sh 4 100000 100000
+./run.sh 8 100000 100000
+./run.sh 12 100000 100000
+./run.sh 16 100000 100000
+./run.sh 32 100000 100000
+
+# Size (MB)	0.5
+# Msg	20000
+./run.sh 4 500000 20000
+./run.sh 8 500000 20000
+./run.sh 12 500000 20000
+./run.sh 16 500000 20000
+./run.sh 32 500000 20000
+
+# Size (MB)	1
+# Msg	10000
+./run.sh 4 1000000 10000
+./run.sh 8 1000000 10000
+./run.sh 12 1000000 10000
+./run.sh 16 1000000 10000
+./run.sh 32 1000000 10000
+
+# Size (MB)	5
+# Msg	2000
+./run.sh 4 5000000 2000
+./run.sh 8 5000000 2000
+./run.sh 12 5000000 2000
+./run.sh 16 5000000 2000
+./run.sh 32 5000000 2000
+
+# Size (MB)	10
+# Msg	1000
+./run.sh 4 10000000 1000
+./run.sh 8 10000000 1000
+./run.sh 12 10000000 1000
+./run.sh 16 10000000 1000
+./run.sh 32 10000000 1000
+```
