@@ -27,9 +27,21 @@ sudo apt install ./vsmtp*
 
 vsmtp --help
 
-# Copy the desired configurations and backup of the current configurations.
-mv /etc/postfix/ postfix/main.cf.bak
-cp postfix/main.cf /etc/postfix/main.cf
+# Using postmulti to handle multiple postfix configuration.
+postmulti -e init
 
-mv -f /etc/vsmtp /etc/vsmtp.bak
-cp -f vsmtp/ /etc/vsmtp
+# Copy vsmtp and postfix configurations for each benchmarks.
+for bench in "hold" "dkim-dmarc"; do
+    pb="postfix-$bench"
+
+    postmulti -I "$pb" -G mta -e create
+    cp -f "$bench"/postfix/* /etc/"$pb"/
+
+    postmulti -i "$pb" -x postconf -e \
+        "master_service_disable =" "authorized_submit_users = root"
+    postmulti -i "$pb" -e enable
+    # postmulti -i "$pb" -p start
+
+    # vsmtp coonfigurations are simply stored in `etc`.
+    cp -f "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"
+done
