@@ -11,10 +11,8 @@ This directory contains multiple configuration to mesure the performances of vSM
 * **hold**: Compare the performances of vSMTP and Postfix when holding incoming messages.
 * **dkim-dmarc**: Compare the performances of vSMTP and Postfix using dkim and dmarc.
 
-It is recommended that you install the following postfix configurations using the `postmulti` command:
+### Install
 
-```sh
-postmulti -I <name-of-instance> -G mta -e create
-```
+Install all benchmarks using the `install.sh` script. This scripts creates multiple postfix configurations using [`postmulti`](https://www.postfix.org/MULTI_INSTANCE_README.html), and multiple vsmtp configurations by storing them in `/etc/vsmtp/benchmarks/<bench-name>`.
 
-Each instance will have it's own configuration and set of queues.
+Each vsmtp/postfix instance will have it's own configuration and set of queues.
