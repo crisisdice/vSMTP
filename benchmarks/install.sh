@@ -14,8 +14,11 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see https://www.gnu.org/licenses/.
 
+set -e
+
 # Download and intall both vsmtp and postfix.
-sudo apt install postfix
+apt update -y
+DEBIAN_FRONTEND=noninteractive apt install postfix curl wget -y
 
 curl -s https://api.github.com/repos/viridit/vsmtp/releases/latest |
     grep "browser_download_url.*ubuntu22.04_amd64.deb" |
@@ -23,7 +26,7 @@ curl -s https://api.github.com/repos/viridit/vsmtp/releases/latest |
     tr -d \" |
     wget -qi -
 
-sudo apt install ./vsmtp*
+apt install ./vsmtp*
 
 vsmtp --help
 
@@ -34,15 +37,19 @@ postmulti -e init
 for bench in "hold" "dkim-dmarc"; do
     pb="postfix-$bench"
 
-    postmulti -I "$pb" -G mta -e create
-    cp -f "$bench"/postfix/* /etc/"$pb"/
+    # Copy postfix configuration to the desired benchmark configuration.
+    mkdir -p /etc/"$pb"/
+    cp -r "$bench"/postfix/* /etc/"$pb"/
 
+    # Let postfix create the instance. (will overrides some values of main.cf and master.cf)
+    postmulti -I "$pb" -G mta -e create
+
+    # Enable the instance.
     postmulti -i "$pb" -x postconf -e \
         "master_service_disable =" "authorized_submit_users = root"
     postmulti -i "$pb" -e enable
-    # postmulti -i "$pb" -p start
 
     # vsmtp coonfigurations are simply stored in `etc`.
     mkdir -p /etc/vsmtp/benchmarks/"$bench"
-    cp -f "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"/
+    cp -r "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"/
 done
