@@ -43,5 +43,6 @@ for bench in "hold" "dkim-dmarc"; do
     # postmulti -i "$pb" -p start
 
     # vsmtp coonfigurations are simply stored in `etc`.
-    cp -f "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"
+    mkdir -p /etc/vsmtp/benchmarks/"$bench"
+    cp -f "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"/
 done
