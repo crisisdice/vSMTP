@@ -52,4 +52,9 @@ for bench in "hold" "dkim-dmarc"; do
     # vsmtp coonfigurations are simply stored in `etc`.
     mkdir -p /etc/vsmtp/benchmarks/"$bench"
     cp -r "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"/
+
+    # Run any install script available in the benchmark directory.
+    if [ -f ./"$bench"/install.sh ]; then
+        ./"$bench"/install.sh
+    fi
 done
