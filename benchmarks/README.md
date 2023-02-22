@@ -34,7 +34,7 @@ cd benchmarks
 ./install.sh
 ```
 
-This script search in each benchmark folder for configurations, and runs any `install.sh` script available in the benchmark.
+This script search in each benchmark folder for configurations, and runs any `install.sh` script available in the benchmark directory.
 
 ### Run benchmarks
 

@@ -55,12 +55,29 @@ function setup_dkim_for_postfix() {
     systemctl enable opendkim
 
     echo "[postfix-dkim-dmarc] Public key generated (to paste to a DNS TXT entry in your registrar):"
-    echo -e "
-
-v=DKIM1; k=rsa; $(tr -d "
+    echo "Host field: mail._domainkey.$domain"
+    echo -e "TXT value: v=DKIM1; k=rsa; $(tr -d "
 " </etc/postfix-dkim-dmarc/dkim/mail.txt | sed "s/k=rsa.* \"p=/k=rsa; p=/;s/\"\s*\"//;s/\"\s*).*//" | grep -o "p=.*")
-
 "
 }
 
+function setup_dmarc_for_postfix() {
+    useradd -m -G mail dmarc
+
+    echo "[postfix-dkim-dmarc] dmarc record generated (to paste to a DNS TXT entry in your registrar):"
+
+    echo "Host field: _dmarc.$(cat /etc/mailname)"
+    echo "TXT value: v=DMARC1; p=reject; rua=mailto:dmarc@$(cat /etc/mailname); fo=1"
+}
+
+function setup_spf_for_postfix() {
+    echo "[postfix-dkim-dmarc] spf record generated (to paste to a DNS TXT entry in your registrar):"
+
+    echo "Host field: "
+    cat /etc/mailname
+    echo "TXT value: v=spf1 mx a:mail.$(cat /etc/mailname) -all"
+}
+
 setup_dkim_for_postfix $1
+setup_dmarc_for_postfix
+setup_spf_for_postfix

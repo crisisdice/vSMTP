@@ -49,7 +49,7 @@ for bench in "hold" "dkim-dmarc"; do
         "master_service_disable =" "authorized_submit_users = root"
     postmulti -i "$pb" -e enable
 
-    # vsmtp coonfigurations are simply stored in `etc`.
+    # vsmtp configurations are simply stored in `etc`.
     mkdir -p /etc/vsmtp/benchmarks/"$bench"
     cp -r "$bench"/vsmtp/* /etc/vsmtp/benchmarks/"$bench"/
 
