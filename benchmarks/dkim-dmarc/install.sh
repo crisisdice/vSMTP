@@ -78,6 +78,8 @@ function setup_spf_for_postfix() {
     echo "TXT value: v=spf1 mx a:mail.$(cat /etc/mailname) -all"
 }
 
-setup_dkim_for_postfix $1
+read -p "Domain of the server (example.com): " domain
+
+setup_dkim_for_postfix "$domain"
 setup_dmarc_for_postfix
 setup_spf_for_postfix
