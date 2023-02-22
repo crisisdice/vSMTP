@@ -17,7 +17,7 @@ set -e
 function setup_dkim_for_postfix() {
     domain="$1"
 
-    apt install opendkim opendkim-tools
+    apt install -y opendkim opendkim-tools
 
     # Generate dkim keys.
     mkdir -p /etc/postfix-dkim-dmarc/dkim
