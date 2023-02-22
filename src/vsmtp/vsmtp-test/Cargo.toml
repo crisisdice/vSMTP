@@ -24,7 +24,7 @@ vqueue = { path = "../../vqueue", features = ["testing"] }
 vsmtp-protocol = { path = "../vsmtp-protocol" }
 
 async-trait = "0.1.64"
-lettre = { version = "0.10.2", default-features = false, features = [
+lettre = { version = "0.10.3", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
@@ -71,7 +71,7 @@ tokio = { version = "1.25.0", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
+tokio-stream = { version = "0.1.12", default-features = false, features = ["time"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 

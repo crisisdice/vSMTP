@@ -69,7 +69,7 @@ anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 
 either = { version = "1.8.1", default-features = false, features = ["use_std", "serde"] }
 
-tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
+tokio-stream = { version = "0.1.12", default-features = false, features = ["time"] }
 async-stream = { version = "0.3.4", default-features = false }
 
 futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
@@ -78,7 +78,7 @@ signal-hook = { version = "0.3.15", default-features = false, features = ["itera
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
 time = { version = "0.3.19", default-features = false, features = ["std", "formatting", "macros"] }
-lettre = { version = "0.10.2", default-features = false, features = [
+lettre = { version = "0.10.3", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
