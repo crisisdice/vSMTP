@@ -14,45 +14,48 @@
 
 set -e
 
-function setup_dkim_for_postfix() {
+function setup_dkim() {
     domain="$1"
 
+    echo "[dkim-dmarc] Setting up DKIM."
+
+    echo "[dkim-dmarc] install opendkim"
     apt install -y opendkim opendkim-tools
 
-    # Generate dkim keys.
+    echo "[dkim-dmarc] Generate dkim keys"
     mkdir -p /etc/postfix-dkim-dmarc/dkim
     opendkim-genkey -D /etc/postfix-dkim-dmarc/dkim/ -d "$domain" -s mail
     chgrp opendkim /etc/postfix-dkim-dmarc/dkim/*
     chmod g+r /etc/postfix-dkim-dmarc/dkim/*
 
-    # Create postfix key table.
+    echo "[dkim-dmarc] Create postfix key table."
     echo "mail._domainkey.$domain $domain:mail:/etc/postfix-dkim-dmarc/dkim/mail.private" >/etc/postfix-dkim-dmarc/dkim/keytable
 
-    # Create a signing table.
+    echo "[dkim-dmarc] Create a signing table."
     echo "*@$domain mail._domainkey.$domain" >/etc/postfix-dkim-dmarc/dkim/signingtable
 
-    # Add trusted hosts.
+    echo "[dkim-dmarc] Add trusted hosts."
     echo "127.0.0.1
         10.1.0.0/16
         1.2.3.4/24" >/etc/postfix-dkim-dmarc/dkim/trustedhosts
 
-    # Setup opendkim.
+    echo "[dkim-dmarc] Setup opendkim."
     echo "KeyTable file:/etc/postfix-dkim-dmarc/dkim/keytable
         SigningTable refile:/etc/postfix-dkim-dmarc/dkim/signingtable
         InternalHosts refile:/etc/postfix-dkim-dmarc/dkim/trustedhosts
 
         Canonicalization        relaxed/simple
-        Socket                  inet:12301@localhost" >/etc/opendkim.conf
+        Socket                  inet:12301@localhost" >>/etc/opendkim.conf
 
-    # Interfacing with postfix.
-    postmulti -i postfix-dkim-dmarc -x postconf -e "myhostname = $(cat /etc/mailname)"
+    echo "[dkim-dmarc] Interfacing with postfix."
+    postmulti -i postfix-dkim-dmarc -x postconf -e "myhostname = $domain"
     postmulti -i postfix-dkim-dmarc -x postconf -e "milter_default_action = accept"
     postmulti -i postfix-dkim-dmarc -x postconf -e "milter_protocol = 6"
     postmulti -i postfix-dkim-dmarc -x postconf -e "smtpd_milters = inet:localhost:12301"
     postmulti -i postfix-dkim-dmarc -x postconf -e "non_smtpd_milters = inet:localhost:12301"
 
-    systemctl restart opendkim
-    systemctl enable opendkim
+    echo "[dkim-dmarc] Launch opendkim."
+    opendkim -f &
 
     echo "[postfix-dkim-dmarc] Public key generated (to paste to a DNS TXT entry in your registrar):"
     echo "Host field: mail._domainkey.$domain"
@@ -61,25 +64,27 @@ function setup_dkim_for_postfix() {
 "
 }
 
-function setup_dmarc_for_postfix() {
+function setup_dmarc() {
+    domain="$1"
+
+    echo "[dkim-dmarc] Setting up DMARC."
+
     useradd -m -G mail dmarc
 
-    echo "[postfix-dkim-dmarc] dmarc record generated (to paste to a DNS TXT entry in your registrar):"
-
-    echo "Host field: _dmarc.$(cat /etc/mailname)"
-    echo "TXT value: v=DMARC1; p=reject; rua=mailto:dmarc@$(cat /etc/mailname); fo=1"
+    echo "[dkim-dmarc] dmarc record generated (to paste to a DNS TXT entry in your registrar):"
+    echo "Host field: _dmarc.$domain"
+    echo "TXT value: v=DMARC1; p=reject; rua=mailto:dmarc@$domain; fo=1"
 }
 
-function setup_spf_for_postfix() {
-    echo "[postfix-dkim-dmarc] spf record generated (to paste to a DNS TXT entry in your registrar):"
-
-    echo "Host field: "
-    cat /etc/mailname
-    echo "TXT value: v=spf1 mx a:mail.$(cat /etc/mailname) -all"
+function setup_spf() {
+    echo "[dkim-dmarc] Setting up SPF."
+    echo "[dkim-dmarc] spf record generated (to paste to a DNS TXT entry in your registrar):"
+    echo "Host field: $domain"
+    echo "TXT value: v=spf1 mx a:mail.$domain -all"
 }
 
 read -p "Domain of the server (example.com): " domain
 
-setup_dkim_for_postfix "$domain"
-setup_dmarc_for_postfix
-setup_spf_for_postfix
+setup_dkim "$domain"
+setup_dmarc "$domain"
+setup_spf "$domain"

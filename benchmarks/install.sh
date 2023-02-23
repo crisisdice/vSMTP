@@ -18,7 +18,7 @@ set -e
 
 # Download and intall both vsmtp and postfix.
 apt update -y
-DEBIAN_FRONTEND=noninteractive apt install postfix curl wget -y
+DEBIAN_FRONTEND=noninteractive apt install postfix rsyslog curl wget -y
 
 curl -s https://api.github.com/repos/viridit/vsmtp/releases/latest |
     grep "browser_download_url.*ubuntu22.04_amd64.deb" |
@@ -29,6 +29,8 @@ curl -s https://api.github.com/repos/viridit/vsmtp/releases/latest |
 apt install ./vsmtp*
 
 vsmtp --help
+
+rm ./vsmtp*
 
 # Using postmulti to handle multiple postfix configuration.
 postmulti -e init
