@@ -17,7 +17,6 @@
 use crate::cli::args::Commands;
 use crate::{GenericQueueManager, QueueID};
 extern crate alloc;
-
 use tui::{
     backend::CrosstermBackend,
     widgets::{Block, Borders, BorderType, Tabs, Paragraph, List, ListItem, ListState},
@@ -37,6 +36,38 @@ enum MenuItem {
     Home,
     Vqueue,
 }
+#[derive(Debug)]
+enum SelectedQueue {
+    Nothing,
+    Dead,
+    Deferred,
+    Delegated,
+    Deliver,
+    Working,
+}
+
+impl SelectedQueue {
+    fn next(&self) -> SelectedQueue {
+        match self {
+            SelectedQueue::Nothing => SelectedQueue::Dead,
+            SelectedQueue::Dead => SelectedQueue::Deferred,
+            SelectedQueue::Deferred => SelectedQueue::Delegated,
+            SelectedQueue::Delegated => SelectedQueue::Deliver,
+            SelectedQueue::Deliver => SelectedQueue::Working,
+            SelectedQueue::Working => SelectedQueue::Dead,
+        }
+    }
+    fn previous(&self) -> SelectedQueue {
+        match self {
+            SelectedQueue::Nothing => SelectedQueue::Working,
+            SelectedQueue::Dead => SelectedQueue::Working,
+            SelectedQueue::Deferred => SelectedQueue::Dead,
+            SelectedQueue::Delegated => SelectedQueue::Deferred,
+            SelectedQueue::Deliver => SelectedQueue::Delegated,
+            SelectedQueue::Working => SelectedQueue::Deliver,
+        }
+    }
+}
 
 impl From<MenuItem> for usize {
     #[inline]
@@ -47,10 +78,24 @@ impl From<MenuItem> for usize {
         }
     }
 }
+#[derive(Clone)]
+struct MessageList<'a> {
+    message: Vec<ListItem<'a>>,
+}
+
+impl<'a> MessageList<'a> {
+    fn new(message: Vec<ListItem<'a>>) -> MessageList<'a> {
+        MessageList {
+            message,
+        }
+    }
+}
+
 struct QueueList<'a> {
     state: ListState,
     queues: Vec<ListItem<'a>>,
 }
+
 impl<'a> QueueList<'a> {
     fn new(queues: Vec<ListItem>) -> QueueList {
         QueueList { 
@@ -99,7 +144,8 @@ impl Commands {
     /// 
     /// TODO
     /// Ajouter x vqueue en zone de texte et les faire clickable pour afficher leurs mails
-    #[inline] pub fn ui(queue_manager: &alloc::sync::Arc<impl GenericQueueManager>,) -> Result<(), std::io::Error> {
+    #[inline] pub async fn ui(queue_manager: &alloc::sync::Arc<impl GenericQueueManager>,) -> anyhow::Result<()> {
+        let mut selected_queue = SelectedQueue::Dead;
         // crate terminal
         enable_raw_mode()?;
         let menu_titles = vec!["Home", "Vqueue","Escape"];
@@ -110,6 +156,12 @@ impl Commands {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
+        let dead_list = queue_manager.list(&QueueID::Dead).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
+        let deferred_list = queue_manager.list(&QueueID::Deferred).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
+        let delegated_list = queue_manager.list(&QueueID::Delegated).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
+        let deliver_list = queue_manager.list(&QueueID::Deliver).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
+        let working_list = queue_manager.list(&QueueID::Working).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
+
         let mut queue_list = QueueList::new(vec![
             ListItem::new("Dead"),
             ListItem::new("Deferred"),
@@ -117,12 +169,27 @@ impl Commands {
             ListItem::new("Deliver"),
             ListItem::new("Working"),
         ]);
+        let dead_message_list = MessageList::new(
+            dead_list.iter().map(|message| ListItem::new(message.as_str()))
+            .collect()
+        );
+        let deferred_message_list = MessageList::new(
+            deferred_list.iter().map(|message| ListItem::new(message.as_str()))
+            .collect()
+        );
+        let delegated_message_list = MessageList::new(
+            delegated_list.iter().map(|message| ListItem::new(message.as_str()))
+            .collect()
+        );
+        let deliver_message_list = MessageList::new(
+            deliver_list.iter().map(|message| ListItem::new(message.as_str()))
+            .collect()
+        );
+        let working_message_list = MessageList::new(
+            working_list.iter().map(|message| ListItem::new(message.as_str()))
+            .collect()
+        );
         loop {
-            let dead_list = queue_manager.list(&QueueID::Dead);
-            let deffered_list = queue_manager.list(&QueueID::Deferred);
-            let delegated_list = queue_manager.list(&QueueID::Delegated);
-            let deliver_list = queue_manager.list(&QueueID::Deliver);
-            let working_list = queue_manager.list(&QueueID::Working);
             terminal.draw(|f| {
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
@@ -174,6 +241,24 @@ impl Commands {
                             .highlight_symbol(">> ");
                         // We can now render the item list
                         f.render_stateful_widget(list, chunks[1], &mut queue_list.state);
+                        //println!("selected qeue is {:?}", selected_queue);
+                        let chunks = Layout::default()
+                            .margin(5)
+                            .direction(Direction::Horizontal)
+                            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref(),)
+                            .split(f.size());
+                        match selected_queue {
+                            SelectedQueue::Dead => {
+                                //panic!("test");
+                                f.render_widget(Self::details_page(&dead_message_list.clone()), chunks[1]);
+                            }
+                            SelectedQueue::Deferred => f.render_widget(Self::details_page(&deferred_message_list.clone()), chunks[1]),
+                            SelectedQueue::Delegated => f.render_widget(Self::details_page(&delegated_message_list.clone()), chunks[1]),
+                            SelectedQueue::Deliver => f.render_widget(Self::details_page(&deliver_message_list.clone()), chunks[1]),
+                            SelectedQueue::Working => f.render_widget(Self::details_page(&working_message_list.clone()), chunks[1]),
+                            SelectedQueue::Nothing => (),
+                        };
+                        
                     }
                 };
             })?;
@@ -190,24 +275,32 @@ impl Commands {
                     }
                     KeyCode::Char('v') => active_menu_item = MenuItem::Vqueue,
                     KeyCode::Char('h') => active_menu_item = MenuItem::Home,
-                    KeyCode::Left => queue_list.unselect(),
-                    KeyCode::Up => queue_list.previous(),
-                    KeyCode::Down => queue_list.next(),
-                    _ =>{}
+                    KeyCode::Left => {
+                        queue_list.unselect();
+                        selected_queue = SelectedQueue::Nothing;
+                    }
+                    KeyCode::Up => {
+                        queue_list.previous();
+                        selected_queue.previous();
+                        //println!("selected qeue is {:?}", selected_queue);
+                    }
+                    KeyCode::Down => {
+                        queue_list.next();
+                        selected_queue.next();
+                        //println!("selected qeue is {:?}", selected_queue);
+                    }
+                    //KeyCode::Enter => {
+                    //    
+                    //}
+                    _ => {}
                 }
             }
         };
     Ok(())
     }
-    /// setup home page 
-    /// # Errors
-    /// 
-    /// # Panics
-    /// 
-    /// TODO
-    ///
     #[must_use]
     #[inline]
+    ///
     pub fn home_page() -> Paragraph<'static>{
         let home = Paragraph::new(vec![
             Spans::from(vec![Span::raw("")]),
@@ -231,5 +324,12 @@ impl Commands {
                 .border_type(BorderType::Plain),
         );
         home
+    }
+    #[must_use]
+    #[inline]
+    fn details_page<'b>(message_list: &MessageList<'b>) -> List<'b> {
+        let details = List::new(message_list.message.clone())
+            .block(Block::default().borders(Borders::ALL).title("Details"));
+        details
     }
 }
