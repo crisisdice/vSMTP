@@ -68,7 +68,7 @@ impl Commands {
                 
             },
             Self::Ui {} => {
-                Self::ui(&queue_manager).expect("UI DIDN'T WORK");
+                Self::ui(&queue_manager).await.expect("UI DIDN'T WORK");
                 Ok(())
             }
         }
