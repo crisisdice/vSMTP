@@ -22,7 +22,7 @@ function run_vsmtp() {
     vsmtp -c "/etc/vsmtp/benchmarks/$bench/vsmtp.vsl" --no-daemon &
     sleep 2
 
-    run_benchmarks "vsmtp-$bench" $sessions $length $messages
+    mesure_session "vsmtp-$bench" $sessions $length $messages
 
     kill %%
 }
@@ -40,7 +40,7 @@ function mesure_session() {
 
 smtp-sink -u postfix -c 127.0.0.1:10025 100000 &
 
-run_postfix $1
-run_vsmtp $1
+run_postfix $1 $2 $3 $4
+run_vsmtp $1 $2 $3 $4
 
 kill %%
