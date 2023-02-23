@@ -89,9 +89,9 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
 name = "anyhow"
-version = "1.0.68"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
+checksum = "224afbd727c3d6e4b90103ece64b8d1b67fbb1973b1046c2281eed3f3803f800"
 
 [[package]]
 name = "arrayvec"
@@ -101,19 +101,20 @@ checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
 name = "async-stream"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad5c83079eae9969be7fadefe640a1c566901f05ff91ab221de4b6f68d9507e"
+checksum = "ad445822218ce64be7a341abfb0b1ea43b5c23aa83902542a4542e78309d8e5e"
 dependencies = [
  "async-stream-impl",
  "futures-core",
+ "pin-project-lite",
 ]
 
 [[package]]
 name = "async-stream-impl"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10f203db73a71dfa2fb6dd22763990fa26f3d2625a6da2da900d23b87d26be27"
+checksum = "e4655ae1a7b0cdf149156f780c5bf3f1352bc53cbd9e0a361a7ef7b22947e965"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -162,7 +163,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
- "itoa 1.0.5",
+ "itoa",
  "matchit",
  "memchr",
  "mime",
@@ -321,18 +322,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba3569f383e8f1598449f1a423e72e99569137b47740b1da11ef19af3d5c3223"
-dependencies = [
- "lazy_static",
- "memchr",
- "regex-automata",
- "serde",
-]
-
-[[package]]
 name = "bufstream"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -475,9 +464,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.1.4"
+version = "4.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f13b9c79b5d1dd500d20ef541215a6423c75829ef43117e1b4d17fd8af0b5d76"
+checksum = "ec0b0588d44d4d63a87dbd75c136c166bbfd9a86a31cb89e09906521c7d3f5e3"
 dependencies = [
  "bitflags",
  "clap_derive",
@@ -810,13 +799,12 @@ dependencies = [
 
 [[package]]
 name = "csv"
-version = "1.1.6"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22813a6dc45b335f9bade10bf7271dc477e81113e89eb251a0bc2a8a81c536e1"
+checksum = "af91f40b7355f82b0a891f50e70399475945bb0b0da4f1700ce60761c9d3e359"
 dependencies = [
- "bstr",
  "csv-core",
- "itoa 0.4.8",
+ "itoa",
  "ryu",
  "serde",
 ]
@@ -1075,6 +1063,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "erased-serde"
+version = "0.3.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4ca605381c017ec7a5fef5e548f1cfaa419ed0f6df6367339300db74c92aa7d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1106,9 +1103,9 @@ dependencies = [
 
 [[package]]
 name = "fastrand"
-version = "1.8.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7a407cfaa3385c4ae6b23e84623d48c2798d06e3e6a1878f7f59f17b3f86499"
+checksum = "e51093e27b0797c359783294ca4f0a911c270184cb10f85783b118614a1501be"
 dependencies = [
  "instant",
 ]
@@ -1472,7 +1469,7 @@ checksum = "75f43d41e26995c17e71ee126451dd3941010b0514a81a9d11f3b341debc2399"
 dependencies = [
  "bytes",
  "fnv",
- "itoa 1.0.5",
+ "itoa",
 ]
 
 [[package]]
@@ -1535,7 +1532,7 @@ dependencies = [
  "http-body",
  "httparse",
  "httpdate",
- "itoa 1.0.5",
+ "itoa",
  "pin-project-lite",
  "socket2",
  "tokio",
@@ -1704,12 +1701,6 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "0.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
-
-[[package]]
-name = "itoa"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
@@ -1740,9 +1731,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "lettre"
-version = "0.10.2"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd84a055407850bcf4791baa77cb4818d37cbb79ad4e60b9b659727b920d2c65"
+checksum = "d8033576bf9f051fce6cb92b6264114b4340896c352a9ff38b67bd4cde924635"
 dependencies = [
  "async-trait",
  "base64 0.21.0",
@@ -2006,9 +1997,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.6.2"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b275950c28b37e794e8c55d88aeb5e139d0ce23fdbbeda68f8d7174abdf9e8fa"
+checksum = "f2e212582ede878b109755efd0773a4f0f4ec851584cf0aefbeb4d9ecc114822"
 dependencies = [
  "adler",
 ]
@@ -2817,9 +2808,9 @@ dependencies = [
 
 [[package]]
 name = "rsasl"
-version = "2.0.0-rc.4"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffa4318e392905b8221cb5e4b33f67e8e658091858e18793460079b526e28e2b"
+checksum = "6a808bca6cf3ebfff88d03432b52b0a4e010a96b1a1cd8565a81ce07ff749ed6"
 dependencies = [
  "acid_io",
  "serde_json",
@@ -3030,11 +3021,11 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.91"
+version = "1.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877c235533714907a8c2464236f5c4b2a17262ef1bd71f38f35ea592c8da6883"
+checksum = "cad406b69c91885b5107daf2c29572f6c8cdb3c66826821e286c533490c0bc76"
 dependencies = [
- "itoa 1.0.5",
+ "itoa",
  "ryu",
  "serde",
 ]
@@ -3115,9 +3106,9 @@ checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
 
 [[package]]
 name = "signal-hook"
-version = "0.3.14"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a253b5e89e2698464fc26b545c9edceb338e18a89effeeecfea192c3025be29d"
+checksum = "732768f1176d21d09e076c23a93123d40bba92d50c4058da34d45c8de8e682b9"
 dependencies = [
  "libc",
  "signal-hook-registry",
@@ -3376,11 +3367,11 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.17"
+version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a561bf4617eebd33bca6434b988f39ed798e527f51a1e797d0ee4f61c0a38376"
+checksum = "53250a3b3fed8ff8fd988587d8925d26a83ac3845d9e03b220b37f34c2b8d6c2"
 dependencies = [
- "itoa 1.0.5",
+ "itoa",
  "libc",
  "num_threads",
  "serde",
@@ -3396,9 +3387,9 @@ checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
 
 [[package]]
 name = "time-macros"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d967f99f534ca7e495c575c62638eebc2898a8c84c119b89e250477bc4ba16b2"
+checksum = "a460aeb8de6dcb0f381e1ee05f1cd56fcf5a5f6eb8187ff3d8f0b11078d38b7c"
 dependencies = [
  "time-core",
 ]
@@ -3490,9 +3481,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
+checksum = "8fb52b74f05dbf495a8fba459fdc331812b96aa086d9eb78101fa0d4569c3313"
 dependencies = [
  "futures-core",
  "pin-project-lite",
@@ -3883,9 +3874,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "viaspf"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f790da1db583e03805dcbe12a447f456ab50ad3518d19378773c5504a4d7e9b7"
+checksum = "2bbc287a04f05fabb7743b8e61463f1af3db591a7c9bcadb3b148581bf66225b"
 dependencies = [
  "async-trait",
  "idna 0.3.0",
@@ -3902,11 +3893,11 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vqueue"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "clap 4.1.4",
+ "clap 4.1.6",
  "crossterm 0.26.0",
  "function_name",
  "futures-util",
@@ -3928,10 +3919,10 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
- "clap 4.1.4",
+ "clap 4.1.6",
  "console-subscriber",
  "diff",
  "document-features",
@@ -3952,7 +3943,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-auth"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3975,17 +3966,20 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "addr",
  "anyhow",
+ "async-trait",
  "base64 0.21.0",
  "either",
+ "erased-serde",
  "fastrand",
  "lettre",
  "libc",
  "pretty_assertions",
  "rsasl",
+ "rstest",
  "rustls",
  "rustls-pemfile",
  "serde",
@@ -4005,7 +3999,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "base64 0.21.0",
@@ -4036,23 +4030,30 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-delivery"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "addr",
  "anyhow",
  "async-trait",
  "env_logger",
+ "erased-serde",
  "futures-util",
  "lettre",
  "pem",
  "rstest",
  "rustls",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "strum",
  "test-log",
+ "thiserror",
  "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "trust-dns-resolver",
+ "url",
  "users",
  "uuid",
  "vsmtp-common",
@@ -4063,7 +4064,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4079,7 +4080,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-csv"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "csv",
@@ -4090,7 +4091,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-memcached"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "env_logger",
  "humantime-serde",
@@ -4120,7 +4121,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-mysql"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "flate2",
@@ -4136,7 +4137,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-vsl"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -4154,7 +4155,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-protocol"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -4165,6 +4166,7 @@ dependencies = [
  "fastrand",
  "rsasl",
  "serde",
+ "serde_with",
  "strum",
  "thiserror",
  "time",
@@ -4179,7 +4181,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "either",
@@ -4208,6 +4210,7 @@ dependencies = [
  "vsmtp-auth",
  "vsmtp-common",
  "vsmtp-config",
+ "vsmtp-delivery",
  "vsmtp-mail-parser",
  "vsmtp-plugin-vsl",
  "vsmtp-test",
@@ -4216,7 +4219,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4230,6 +4233,7 @@ dependencies = [
  "futures-util",
  "iai",
  "lettre",
+ "libloading",
  "log",
  "pretty_assertions",
  "rand",
@@ -4259,7 +4263,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "async-trait",

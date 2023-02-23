@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "2.1.0"
+version = "2.1.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.66.1"
@@ -26,22 +26,22 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=2.1.0"
+version = "=2.1.1"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-auth]
-version = "=2.1.0"
+version = "=2.1.1"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-plugin-vsl]
-version = "=2.1.0"
+version = "=2.1.1"
 path = "../vsmtp-plugin-vsl"
 default-features = false
 features = ["unix"]
 
 [dependencies]
 
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter"] }
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
@@ -72,8 +72,8 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
 ] }
 
 semver = { version = "1.0.16", default-features = false, features = ["std", "serde"] }
+serde_json = { version = "1.0.93", default-features = false, features = ["std"] }
 serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros"] }
-serde_json = "1.0.91"
 serde_path_to_error = "0.1.9"
 
 rhai = { version = "1.12.0", features = ["sync", "serde"] }

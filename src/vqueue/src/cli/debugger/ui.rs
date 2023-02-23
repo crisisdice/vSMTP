@@ -145,7 +145,7 @@ impl Commands {
     /// TODO
     /// Ajouter x vqueue en zone de texte et les faire clickable pour afficher leurs mails
     #[inline] pub async fn ui(queue_manager: &alloc::sync::Arc<impl GenericQueueManager>,) -> anyhow::Result<()> {
-        let mut selected_queue = SelectedQueue::Dead;
+        let mut selected_queue = SelectedQueue::Nothing;
         // crate terminal
         enable_raw_mode()?;
         let menu_titles = vec!["Home", "Vqueue","Escape"];
@@ -235,23 +235,18 @@ impl Commands {
                             .block(Block::default().borders(Borders::ALL).title("Vqueue"))
                             .highlight_style(
                                 Style::default()
-                                    .bg(Color::LightGreen)
                                     .add_modifier(Modifier::BOLD),
                             )
                             .highlight_symbol(">> ");
                         // We can now render the item list
                         f.render_stateful_widget(list, chunks[1], &mut queue_list.state);
-                        //println!("selected qeue is {:?}", selected_queue);
                         let chunks = Layout::default()
                             .margin(5)
                             .direction(Direction::Horizontal)
                             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref(),)
                             .split(f.size());
                         match selected_queue {
-                            SelectedQueue::Dead => {
-                                //panic!("test");
-                                f.render_widget(Self::details_page(&dead_message_list.clone()), chunks[1]);
-                            }
+                            SelectedQueue::Dead => f.render_widget(Self::details_page(&dead_message_list.clone()), chunks[1]),
                             SelectedQueue::Deferred => f.render_widget(Self::details_page(&deferred_message_list.clone()), chunks[1]),
                             SelectedQueue::Delegated => f.render_widget(Self::details_page(&delegated_message_list.clone()), chunks[1]),
                             SelectedQueue::Deliver => f.render_widget(Self::details_page(&deliver_message_list.clone()), chunks[1]),
@@ -281,13 +276,11 @@ impl Commands {
                     }
                     KeyCode::Up => {
                         queue_list.previous();
-                        selected_queue.previous();
-                        //println!("selected qeue is {:?}", selected_queue);
+                        selected_queue = selected_queue.previous();
                     }
                     KeyCode::Down => {
                         queue_list.next();
-                        selected_queue.next();
-                        //println!("selected qeue is {:?}", selected_queue);
+                        selected_queue = selected_queue.next();
                     }
                     //KeyCode::Enter => {
                     //    

@@ -48,12 +48,33 @@ run_test! {
         "mail from: <any@example.com>\r\n",
     ],
     expected = [
-        "0 welcome to the test\r\n",
+        "100 welcome to the test\r\n",
         "250 Ok\r\n",
         "554 permanent problems with the remote server\r\n",
     ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_default/config_missing_domain_scripts/vsmtp.vsl"
+    ])).unwrap(),
+}
+
+run_test! {
+    fn default_virtual,
+    input = [
+        "HELO foo\r\n",
+        "STARTTLS\r\n"
+    ],
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "220 TLS go ahead\r\n",
+        "221 Service closing transmission channel\r\n",
+    ],
+    starttls => [
+        "QUIT\r\n",
+    ],
+    config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "src/tests/rule_engine/rule_default/default_virtual/vsmtp.vsl"
     ])).unwrap(),
 }

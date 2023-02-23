@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "2.1.0"
+version = "2.1.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.66.1"
@@ -25,8 +25,8 @@ async-trait = { version = "0.1.64", default-features = false }
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "1.0.38", default-features = false }
 
-tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+tokio-stream = { version = "0.1.12", default-features = false, features = ["time"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 
 # TODO : remove me
 convert_case = "0.6.0"

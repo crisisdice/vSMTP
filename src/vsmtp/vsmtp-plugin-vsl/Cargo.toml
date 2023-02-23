@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-plugin-vsl"
-version = "2.1.0"
+version = "2.1.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.66.1"
@@ -24,7 +24,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "=2.1.0" }
+vsmtp-common = { path = "../vsmtp-common", version = "=2.1.1" }
 
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 
@@ -37,7 +37,7 @@ ipnet = { version = "2.7.1", default-features = false, features = [
     # "serde", # TODO
 ] }
 either = { version = "1.8.1", default-features = false, features = ["use_std"] }
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 
 # Unix feature dependencies.

@@ -31,7 +31,7 @@ use crate::field::{
     ResolverOptsWrapper,
 };
 use anyhow::Context;
-use vsmtp_common::{auth::Mechanism, CodeID, Reply, Stage};
+use vsmtp_common::{auth::Mechanism, CodeID, Domain, Reply, Stage};
 
 ///
 pub struct Builder<State> {
@@ -563,6 +563,37 @@ impl Builder<WantsAppVSL> {
             },
         }
     }
+
+    ///
+    #[must_use]
+    pub fn with_filter_path(
+        self,
+        filter_path: impl Into<std::path::PathBuf>,
+    ) -> Builder<WantsAppLogs> {
+        Builder::<WantsAppLogs> {
+            state: WantsAppLogs {
+                parent: self.state,
+                domain_dir: None,
+                filter_path: Some(filter_path.into()),
+            },
+        }
+    }
+
+    ///
+    #[must_use]
+    pub fn with_domain_dir_and_filter_path(
+        self,
+        domain_dir: impl Into<std::path::PathBuf>,
+        filter_path: impl Into<std::path::PathBuf>,
+    ) -> Builder<WantsAppLogs> {
+        Builder::<WantsAppLogs> {
+            state: WantsAppLogs {
+                parent: self.state,
+                domain_dir: Some(domain_dir.into()),
+                filter_path: Some(filter_path.into()),
+            },
+        }
+    }
 }
 
 impl Builder<WantsAppLogs> {
@@ -645,7 +676,7 @@ impl Builder<WantsServerDNS> {
 /// metadata for a virtual entry.
 pub struct VirtualEntry {
     /// the domain of the entry.
-    pub domain: String,
+    pub domain: Domain,
     /// path to the certificate and private key used for tls.
     pub tls: Option<(String, String)>,
     /// dns configuration.
@@ -681,21 +712,25 @@ impl Builder<WantsServerVirtual> {
                 entry.domain.clone(),
                 match (entry.tls.as_ref(), entry.dns) {
                     (None, None) => FieldServerVirtual {
+                        is_default: false,
                         tls: None,
                         dns: None,
                         dkim: None,
                     },
                     (None, Some(dns_config)) => FieldServerVirtual {
+                        is_default: false,
                         tls: None,
                         dns: Some(dns_config),
                         dkim: None,
                     },
                     (Some((certificate, private_key)), None) => FieldServerVirtual {
+                        is_default: false,
                         tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
                         dns: None,
                         dkim: None,
                     },
                     (Some((certificate, private_key)), Some(dns_config)) => FieldServerVirtual {
+                        is_default: false,
                         tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
                         dns: Some(dns_config),
                         dkim: None,
