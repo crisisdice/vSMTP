@@ -18,7 +18,9 @@ set -e
 
 # Download and intall both vsmtp and postfix.
 apt update -y
-DEBIAN_FRONTEND=noninteractive apt install postfix rsyslog curl wget -y
+DEBIAN_FRONTEND=noninteractive apt install syslog-ng curl wget postfix -y
+
+service syslog-ng start
 
 curl -s https://api.github.com/repos/viridit/vsmtp/releases/latest |
     grep "browser_download_url.*ubuntu22.04_amd64.deb" |
@@ -57,6 +59,7 @@ for bench in "hold" "dkim-dmarc"; do
 
     # Run any install script available in the benchmark directory.
     if [ -f ./"$bench"/install.sh ]; then
+        chmod +x ./"$bench"/install.sh
         ./"$bench"/install.sh
     fi
 done
