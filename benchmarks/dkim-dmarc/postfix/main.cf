@@ -7,6 +7,6 @@ smtpd_client_restrictions = permit_mynetworks
 message_size_limit = 200000000
 
 myhostname = example.com
-mydestination = postfix.com
+mydestination = gmail.com
 mynetworks = 127.0.0.0/24
 relayhost = [127.0.0.1]:10025

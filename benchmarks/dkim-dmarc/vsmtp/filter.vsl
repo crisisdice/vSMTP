@@ -2,19 +2,9 @@
     postq: [
         action "sign dkim" || {
             // Iterate over all the private keys defined for our server.
-            for key in dkim::get_private_keys(env("VSMTP_SERVER_NAME")) {
-                dkim::sign(
-                    // Selector of the DNS record.
-                    "2022-09",
-                    // The private key associated with the public key in `{selector}._domainkey.{sdid}`
-                    // Or `2022-09._domainkey.doe-family.com.` in that case
-                    key,
-                    // Headers to sign with.
-                    ["From", "To", "Date", "Subject", "From"],
-                    // Canonicalization algorithm to use.
-                    "simple/relaxed"
-                );
-              }
+            for key in dkim::get_private_keys(cfg::server.name) {
+                dkim::sign("2022-09", key, ["From", "To", "Date", "Subject", "From"], "simple/relaxed");
+            }
         }
     ],
 
@@ -27,4 +17,6 @@
             }
         }
     ],
+
+    delivery: [ action "forward to sink" || forward_all("smtp://127.0.0.1:10025") ]
 }

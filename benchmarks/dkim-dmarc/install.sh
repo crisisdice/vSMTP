@@ -14,6 +14,17 @@
 
 set -e
 
+function setup_postfix() {
+    postmulti -i postfix-hold -x postconf -e "smtpd_banner = \$myhostname ESMTP \$mail_name"
+    postmulti -i postfix-hold -x postconf -e "smtpd_client_restrictions = permit_mynetworks"
+    postmulti -i postfix-hold -x postconf -e "message_size_limit = 200000000"
+    postmulti -i postfix-hold -x postconf -e "myorigin = \$mydomain"
+    postmulti -i postfix-hold -x postconf -e "mynetworks = 127.0.0.0/24"
+    postmulti -i postfix-hold -x postconf -e "relay_domains ="
+    postmulti -i postfix-hold -x postconf -e "relayhost = [127.0.0.1]:10025"
+    postmulti -i postfix-hold -x postconf -e "inet_interfaces = loopback-only"
+}
+
 function setup_dkim() {
     domain="$1"
 
@@ -85,6 +96,7 @@ function setup_spf() {
 
 read -p "Domain of the server (example.com): " domain
 
+setup_postfix
 setup_dkim "$domain"
 setup_dmarc "$domain"
 setup_spf "$domain"
