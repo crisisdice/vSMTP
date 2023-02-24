@@ -24,6 +24,7 @@ function run_vsmtp() {
 
     mesure_session "vsmtp-$bench" $sessions $length $messages
 
+    # FIXME: could kill last process used during a benchmark.
     kill %%
 }
 
@@ -33,14 +34,16 @@ function mesure_session() {
     length="$3"
     messages="$4"
 
-    result=$(time smtp-source -s $sessions -l $length -m $messages -f john.doe@example.com -N -t jane.doe@example.com 127.0.0.1:25)
+    result=$(time smtp-source -s $sessions -l $length -m $messages -f john.doe@localhost -N -t jane.doe@localhost 127.0.0.1:25)
 
     echo "[$server] $result"
 }
 
 smtp-sink -u postfix -c 127.0.0.1:10025 100000 &
+>sink.log
 
 run_postfix $1 $2 $3 $4
 run_vsmtp $1 $2 $3 $4
 
+# FIXME: could kill last process used during a benchmark.
 kill %%

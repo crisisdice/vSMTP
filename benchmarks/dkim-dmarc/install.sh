@@ -15,14 +15,15 @@
 set -e
 
 function setup_postfix() {
-    postmulti -i postfix-hold -x postconf -e "smtpd_banner = \$myhostname ESMTP \$mail_name"
-    postmulti -i postfix-hold -x postconf -e "smtpd_client_restrictions = permit_mynetworks"
-    postmulti -i postfix-hold -x postconf -e "message_size_limit = 200000000"
-    postmulti -i postfix-hold -x postconf -e "myorigin = \$mydomain"
-    postmulti -i postfix-hold -x postconf -e "mynetworks = 127.0.0.0/24"
-    postmulti -i postfix-hold -x postconf -e "relay_domains ="
-    postmulti -i postfix-hold -x postconf -e "relayhost = [127.0.0.1]:10025"
-    postmulti -i postfix-hold -x postconf -e "inet_interfaces = loopback-only"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "smtpd_banner = \$myhostname ESMTP \$mail_name"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "smtpd_client_restrictions = permit_mynetworks"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "message_size_limit = 200000000"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "myorigin = \$mydomain"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "mynetworks = 127.0.0.0/24"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "relay_domains = [127.0.0.1]:10025"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "relayhost = [127.0.0.1]:10025"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "inet_interfaces = loopback-only"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "local_recipient_maps ="
 }
 
 function setup_dkim() {
@@ -62,8 +63,8 @@ function setup_dkim() {
     postmulti -i postfix-dkim-dmarc -x postconf -e "myhostname = $domain"
     postmulti -i postfix-dkim-dmarc -x postconf -e "milter_default_action = accept"
     postmulti -i postfix-dkim-dmarc -x postconf -e "milter_protocol = 6"
-    postmulti -i postfix-dkim-dmarc -x postconf -e "smtpd_milters = inet:localhost:12301"
-    postmulti -i postfix-dkim-dmarc -x postconf -e "non_smtpd_milters = inet:localhost:12301"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "smtpd_milters = inet:127.0.0.1:12301"
+    postmulti -i postfix-dkim-dmarc -x postconf -e "non_smtpd_milters = inet:127.0.0.1:12301"
 
     echo "[dkim-dmarc] Launch opendkim."
     opendkim -f &
