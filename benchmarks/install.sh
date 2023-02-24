@@ -41,10 +41,6 @@ postmulti -e init
 for bench in "hold" "dkim-dmarc"; do
     pb="postfix-$bench"
 
-    # Copy postfix configuration to the desired benchmark configuration.
-    mkdir -p /etc/"$pb"/
-    cp -r "$bench"/postfix/* /etc/"$pb"/
-
     # Let postfix create the instance. (will overrides some values of main.cf and master.cf)
     postmulti -I "$pb" -G mta -e create
 
