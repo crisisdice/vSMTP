@@ -161,7 +161,7 @@ impl Commands {
         let delegated_list = queue_manager.list(&QueueID::Delegated).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
         let deliver_list = queue_manager.list(&QueueID::Deliver).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
         let working_list = queue_manager.list(&QueueID::Working).await?.into_iter().collect::<anyhow::Result<Vec<String>>>()?;
-
+        
         let mut queue_list = QueueList::new(vec![
             ListItem::new("Dead"),
             ListItem::new("Deferred"),
@@ -191,7 +191,7 @@ impl Commands {
         );
         loop {
             terminal.draw(|f| {
-                let chunks = Layout::default()
+                let mut chunks = Layout::default()
                     .direction(Direction::Vertical)
                     .margin(2)
                     .constraints(
@@ -230,7 +230,19 @@ impl Commands {
                     MenuItem::Home => {
                         f.render_widget(Self::home_page(), chunks[1]);
                     }
-                    MenuItem::Vqueue => {    
+                    MenuItem::Vqueue => {
+                        chunks = Layout::default()
+                            .margin(5)
+                            .direction(Direction::Horizontal)
+                            .constraints(
+                                [
+                                Constraint::Percentage(20),
+                                Constraint::Percentage(30),
+                                Constraint::Percentage(50),
+                                ]
+                            .as_ref(),
+                        )
+                            .split(f.size()); 
                         let list = List::new(queue_list.queues.clone())
                             .block(Block::default().borders(Borders::ALL).title("Vqueue"))
                             .highlight_style(
@@ -239,14 +251,16 @@ impl Commands {
                             )
                             .highlight_symbol(">> ");
                         // We can now render the item list
-                        f.render_stateful_widget(list, chunks[1], &mut queue_list.state);
-                        let chunks = Layout::default()
-                            .margin(5)
-                            .direction(Direction::Horizontal)
-                            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref(),)
-                            .split(f.size());
+                        f.render_stateful_widget(list, chunks[0], &mut queue_list.state);
                         match selected_queue {
-                            SelectedQueue::Dead => f.render_widget(Self::details_page(&dead_message_list.clone()), chunks[1]),
+                            SelectedQueue::Dead => {
+                                f.render_widget(Self::details_page(&dead_message_list.clone()), chunks[1]);
+                                let clone_dead_list = &dead_list;
+                                let test = tokio::task::block_in_place(move || {
+                                tokio::runtime::Handle::current().block_on(Self::message_body(&clone_dead_list, queue_manager))
+                                });
+                                f.render_widget(test, chunks[2]);
+                            }
                             SelectedQueue::Deferred => f.render_widget(Self::details_page(&deferred_message_list.clone()), chunks[1]),
                             SelectedQueue::Delegated => f.render_widget(Self::details_page(&delegated_message_list.clone()), chunks[1]),
                             SelectedQueue::Deliver => f.render_widget(Self::details_page(&deliver_message_list.clone()), chunks[1]),
@@ -270,7 +284,7 @@ impl Commands {
                     }
                     KeyCode::Char('v') => active_menu_item = MenuItem::Vqueue,
                     KeyCode::Char('h') => active_menu_item = MenuItem::Home,
-                    KeyCode::Left => {
+                    KeyCode::Tab => {
                         queue_list.unselect();
                         selected_queue = SelectedQueue::Nothing;
                     }
@@ -282,9 +296,8 @@ impl Commands {
                         queue_list.next();
                         selected_queue = selected_queue.next();
                     }
-                    //KeyCode::Enter => {
-                    //    
-                    //}
+                    //KeyCode::Enter
+                    //KeyCode::Right
                     _ => {}
                 }
             }
@@ -324,5 +337,25 @@ impl Commands {
         let details = List::new(message_list.message.clone())
             .block(Block::default().borders(Borders::ALL).title("Details"));
         details
+    }
+    #[inline]
+    async fn message_body<'c>(message_uid: &Vec<String>, queue_manager: &alloc::sync::Arc<impl GenericQueueManager>) -> Paragraph<'c> {
+        let uid = uuid::Uuid::parse_str(&message_uid[0]).unwrap();
+        let message_body = queue_manager.get_msg(&uid).await.unwrap();
+        let raw_body = message_body.inner().to_string();
+        let paragraph_body_message = Paragraph::new(vec![
+            Spans::from(vec![Span::raw("")]),
+            Spans::from(vec![Span::raw(raw_body)]),
+            Spans::from(vec![Span::raw("")]),
+        ])
+        .alignment(Alignment::Left)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::White))
+                .title("Body Message")
+                .border_type(BorderType::Plain),
+        );
+        paragraph_body_message
     }
 }
