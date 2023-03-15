@@ -53,6 +53,12 @@ impl RawBody {
     }
 
     ///
+    #[must_use]
+    pub fn body_mut(&mut self) -> &mut Option<String> {
+        &mut self.body
+    }
+
+    ///
     // TODO: make it lazy if possible
     #[must_use]
     pub fn headers(&self) -> Vec<(String, String)> {

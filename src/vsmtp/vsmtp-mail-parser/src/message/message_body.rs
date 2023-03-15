@@ -77,6 +77,12 @@ impl MessageBody {
         &self.raw
     }
 
+    ///
+    #[must_use]
+    pub fn inner_mut(&mut self) -> &mut RawBody {
+        &mut self.raw
+    }
+
     /// Get the parsed part
     #[must_use]
     pub const fn get_parsed(&self) -> &Option<Mail> {
