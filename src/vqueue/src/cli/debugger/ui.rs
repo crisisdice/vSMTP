@@ -19,9 +19,9 @@ use crate::{GenericQueueManager, QueueID};
 extern crate alloc;
 use tui::{
     backend::CrosstermBackend,
-    widgets::{Block, Borders, BorderType, Tabs, Paragraph, List, ListItem, ListState},
+    widgets::{Block, Borders, BorderType, Tabs, Paragraph, List, ListItem, ListState, Wrap},
     layout::{Layout, Constraint, Direction, Alignment},
-    text::{Span, Spans},
+    text::{Span, Spans, Text},
     style::{Color, Modifier, Style},
     Terminal,
 };
@@ -146,6 +146,9 @@ impl Commands {
     /// Ajouter x vqueue en zone de texte et les faire clickable pour afficher leurs mails
     #[inline] pub async fn ui(queue_manager: &alloc::sync::Arc<impl GenericQueueManager>,) -> anyhow::Result<()> {
         let mut selected_queue = SelectedQueue::Nothing;
+        let mut a = 0;
+        let mut b = 0;
+        let mut scroll: (u16, u16) = (a, b);
         // crate terminal
         enable_raw_mode()?;
         let menu_titles = vec!["Home", "Vqueue","Escape"];
@@ -257,7 +260,7 @@ impl Commands {
                                 f.render_widget(Self::details_page(&dead_message_list.clone()), chunks[1]);
                                 let clone_dead_list = &dead_list;
                                 let test = tokio::task::block_in_place(move || {
-                                tokio::runtime::Handle::current().block_on(Self::message_body(&clone_dead_list, queue_manager))
+                                tokio::runtime::Handle::current().block_on(Self::message_body(&clone_dead_list, queue_manager, scroll))
                                 });
                                 f.render_widget(test, chunks[2]);
                             }
@@ -296,8 +299,16 @@ impl Commands {
                         queue_list.next();
                         selected_queue = selected_queue.next();
                     }
-                    //KeyCode::Enter
-                    //KeyCode::Right
+                    KeyCode::Enter => {
+                        a = a + 1;
+                        scroll = (a, b);
+                    }
+                    KeyCode::Delete => {
+                        if a > 0 {
+                            a = a - 1;
+                        }
+                        scroll = (a, b);
+                    }
                     _ => {}
                 }
             }
@@ -339,16 +350,14 @@ impl Commands {
         details
     }
     #[inline]
-    async fn message_body<'c>(message_uid: &Vec<String>, queue_manager: &alloc::sync::Arc<impl GenericQueueManager>) -> Paragraph<'c> {
-        let uid = uuid::Uuid::parse_str(&message_uid[0]).unwrap();
+    async fn message_body<'c>(message_uid: &Vec<String>, queue_manager: &alloc::sync::Arc<impl GenericQueueManager>, scroll: (u16,u16)) -> Paragraph<'c> {        let uid = uuid::Uuid::parse_str(&message_uid[0]).unwrap();
         let message_body = queue_manager.get_msg(&uid).await.unwrap();
         let raw_body = message_body.inner().to_string();
-        let paragraph_body_message = Paragraph::new(vec![
-            Spans::from(vec![Span::raw("")]),
-            Spans::from(vec![Span::raw(raw_body)]),
-            Spans::from(vec![Span::raw("")]),
-        ])
+        let text = Text::from(raw_body);
+        let paragraph_body_message = Paragraph::new(text)
+        .scroll(scroll)
         .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true })
         .block(
             Block::default()
                 .borders(Borders::ALL)
