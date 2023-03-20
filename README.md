@@ -133,7 +133,7 @@ import "service/database" as db;
       let sender = ctx::mail_from();
 
       // is the user in our greylist ?
-      // (Don't forget to sanitize your inputs to prevent SQL injection)
+      // (don't forget to sanitize your inputs to prevent SQL injection)
       if db::greylist.query(`SELECT * FROM greylist.sender WHERE address = '${sender}';`).is_empty() {
         // it does not, we add the address to the database, then deny the email.
         db::greylist.query(`
@@ -177,7 +177,7 @@ If you want to check examples for the latest vSMTP versions, switch to the "main
 are delivered.
 
 For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.
-Documentation for the "develop" branch is also available in the vBook at <https://vsmtp.rs/next>
+Documentation for the "develop" branch is also available in the vBook at <https://vsmtp.rs/next>.
 
 To stay tuned, ask questions and get in-depth answers feel free to join our [Discord](https://discord.gg/N8JGBRBshf) server.
 You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussions).

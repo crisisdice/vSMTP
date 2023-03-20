@@ -74,7 +74,10 @@ impl Builder<WantsValidate> {
                 logs: FieldServerLogs {
                     filename: srv_logs.filename,
                     level: srv_logs.level,
-                    system: None,
+                    #[cfg(any(feature = "journald", feature = "syslog"))]
+                    sys_level: FieldServerLogs::default_sys_level(),
+                    #[cfg(feature = "syslog")]
+                    syslog: crate::field::SyslogSocket::default(),
                 },
                 queues: FieldServerQueues {
                     dirpath: srv_delivery.dirpath,
@@ -125,7 +128,7 @@ mod tests {
         let config = Config::builder()
             .with_current_version()
             .without_path()
-            .with_debug_server_info()
+            .with_server_name("testserver.com".parse::<vsmtp_common::Domain>().unwrap())
             .with_default_system()
             .with_ipv4_localhost()
             .with_default_logs_settings()

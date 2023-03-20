@@ -81,20 +81,7 @@ fn try_main() -> anyhow::Result<()> {
         }
     }
 
-    vsmtp::tracing_subscriber::initialize(&args, &config)?;
-
-    tracing::info!(
-        server = ?config.server.logs.filename,
-        app = ?config.app.logs.filename,
-        syslog = config
-        .server
-        .logs
-        .system
-        .as_ref()
-        .map(|sys| sys.to_string())
-        .unwrap_or_else(|| "None".to_string()),
-        "vSMTP logs initialized: ",
-    );
+    vsmtp::init_logs(&args, &config)?;
 
     let sockets = (
         bind_sockets(&config.server.interfaces.addr)?,
@@ -117,6 +104,10 @@ fn try_main() -> anyhow::Result<()> {
         // setgid(config.server.system.group.gid())?;
         // setresuid ?
         // setuid(config.server.system.user.uid())?;
+    }
+
+    if let Some(t) = args.env {
+        dotenv::from_path(t)?;
     }
 
     start_runtime(config, sockets, args.timeout.map(|t| t.0))

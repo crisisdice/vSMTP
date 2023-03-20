@@ -59,7 +59,7 @@ pub mod field {
         /// Used with the response [`CodeID::Greetings`], and [`CodeID::Helo`],
         /// and [`CodeID::EhloPain`], and [`CodeID::EhloSecured`].
         #[serde(default = "FieldServer::hostname")]
-        pub name: String,
+        pub name: Domain,
         /// Maximum number of client served at the same time.
         ///
         /// The client will be rejected if the server is full.
@@ -186,6 +186,7 @@ pub mod field {
     }
 
     /// The field related to the logs.
+    #[serde_with::serde_as]
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerLogs {
@@ -201,42 +202,26 @@ pub mod field {
             deserialize_with = "crate::parser::tracing_directive::deserialize"
         )]
         pub level: Vec<tracing_subscriber::filter::Directive>,
-        /// see [`FieldServerLogSystem`]
-        pub system: Option<FieldServerLogSystem>,
-    }
 
-    ///
-    #[derive(
-        Debug,
-        Default,
-        Copy,
-        Clone,
-        PartialEq,
-        Eq,
-        strum::Display,
-        strum::EnumString,
-        serde_with::DeserializeFromStr,
-        serde_with::SerializeDisplay,
-    )]
-    pub enum SyslogFormat {
-        ///
-        #[strum(serialize = "3164")]
-        Rfc3164,
-        ///
-        #[default]
-        #[strum(serialize = "5424")]
-        Rfc5424,
+        /// Level of the logs sent to the system log, either `journald` or `syslog`.
+        #[cfg(any(feature = "journald", feature = "syslog"))]
+        #[serde_as(as = "serde_with::DisplayFromStr")]
+        #[serde(default = "FieldServerLogs::default_sys_level")]
+        pub sys_level: tracing::Level,
+
+        /// Parameters for the `syslog` backend.
+        #[cfg(feature = "syslog")]
+        #[serde(default)]
+        pub syslog: SyslogSocket,
     }
 
     /// Configure how the logs are sent to the system log.
+    #[cfg(feature = "syslog")]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
     pub enum SyslogSocket {
         /// Send logs using udp.
         Udp {
-            /// Local address for the UDP stream.
-            #[serde(default = "SyslogSocket::default_udp_local")]
-            local: std::net::SocketAddr,
             /// Remote address for the UDP stream.
             #[serde(default = "SyslogSocket::default_udp_server")]
             server: std::net::SocketAddr,
@@ -250,34 +235,7 @@ pub mod field {
         /// Send logs using a unix socket with a custom path.
         Unix {
             /// Path to the unix socket.
-            path: Option<std::path::PathBuf>,
-        },
-    }
-
-    /// The configuration of the `system logging module`.
-    ///
-    /// The implementation is backended for `syslogd` or `journald`.
-    #[serde_with::serde_as]
-    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
-    #[serde(deny_unknown_fields, tag = "backend", rename_all = "lowercase")]
-    pub enum FieldServerLogSystem {
-        /// Parameters for the `syslogd` backend.
-        Syslogd {
-            ///
-            #[serde_as(as = "serde_with::DisplayFromStr")]
-            level: tracing::Level,
-            ///
-            #[serde(default)]
-            format: SyslogFormat,
-            ///
-            #[serde(default)]
-            socket: SyslogSocket,
-        },
-        ///
-        Journald {
-            ///
-            #[serde_as(as = "serde_with::DisplayFromStr")]
-            level: tracing::Level,
+            path: std::path::PathBuf,
         },
     }
 
@@ -324,11 +282,6 @@ pub mod field {
     #[derive(Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtual {
-        /// Is this domain considered the default one by vSMTP.
-        ///
-        /// Implying using this domain's parameters for connection not providing SNI.
-        #[serde(default)]
-        pub is_default: bool,
         /// see [`FieldServerVirtualTls`]
         pub tls: Option<FieldServerVirtualTls>,
         /// see [`FieldServerDNS`]
@@ -340,10 +293,7 @@ pub mod field {
 
     /// The TLS parameter for the **OUTGOING SIDE** of the virtual entry.
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-    #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtualTls {
-        /// TLS protocol supported
-        pub protocol_version: Vec<vsmtp_common::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
         /// (the first certificate should certify KEYFILE, the last should be a root CA)
         pub certificate: SecretFile<Vec<rustls::Certificate>>,
@@ -361,7 +311,6 @@ pub mod field {
     }
 
     /// The TLS parameter for the **INCOMING SIDE** of the server (common with the virtual entry).
-    // TODO: should use [`FieldServerVirtualTls`] flattened ?
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerTls {
@@ -378,6 +327,12 @@ pub mod field {
         /// TLS cipher suite supported
         #[serde(default = "FieldServerTls::default_cipher_suite")]
         pub cipher_suite: Vec<vsmtp_common::CipherSuite>,
+        /// This field is used to handle incoming TLS connections not using SNI or using an unknown SNI.
+        ///
+        /// * if none (default),    will deny the connection
+        /// * if some,              will used these values
+        #[serde(default, flatten)]
+        pub default: Option<FieldServerVirtualTls>,
     }
 
     /// Configuration of the client's error handling.
