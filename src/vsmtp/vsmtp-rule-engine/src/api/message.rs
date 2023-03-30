@@ -936,6 +936,7 @@ pub(super) struct Impl;
 
 impl Impl {
     pub fn get_all_headers(message: &Message, name: &str) -> rhai::Array {
+        // TODO: add this method directly to the raw / parsed message.
         vsl_guard_ok!(message.read())
             .inner()
             .headers()
