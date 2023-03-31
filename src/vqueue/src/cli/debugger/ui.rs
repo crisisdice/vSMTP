@@ -46,6 +46,11 @@ enum SelectedQueue {
     Working,
 }
 
+enum InQueue {
+    Queue,
+    Details,
+}
+
 impl SelectedQueue {
     fn next(&self) -> SelectedQueue {
         match self {
@@ -80,14 +85,45 @@ impl From<MenuItem> for usize {
 }
 #[derive(Clone)]
 struct MessageList<'a> {
+    state: ListState,
     message: Vec<ListItem<'a>>,
 }
 
 impl<'a> MessageList<'a> {
     fn new(message: Vec<ListItem<'a>>) -> MessageList<'a> {
         MessageList {
+            state: ListState::default(),
             message,
         }
+    }
+    fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.message.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+    fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.message.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+    fn unselect(&mut self) {
+        self.state.select(None);
     }
 }
 
@@ -145,6 +181,7 @@ impl Commands {
     /// TODO
     /// Ajouter x vqueue en zone de texte et les faire clickable pour afficher leurs mails
     #[inline] pub async fn ui(queue_manager: &alloc::sync::Arc<impl GenericQueueManager>,) -> anyhow::Result<()> {
+        let mut selected_tab = InQueue::Queue; 
         let mut selected_queue = SelectedQueue::Nothing;
         let mut a = 0;
         let mut b = 0;
@@ -292,12 +329,27 @@ impl Commands {
                         selected_queue = SelectedQueue::Nothing;
                     }
                     KeyCode::Up => {
-                        queue_list.previous();
-                        selected_queue = selected_queue.previous();
+                        match selected_tab {
+                            InQueue::Queue => {
+                                queue_list.previous();
+                                selected_queue = selected_queue.previous();
+                            }
+                            InQueue::Details => {
+                                //ici changement entre les message de details avec next et previous
+                            }
+                        }
                     }
                     KeyCode::Down => {
-                        queue_list.next();
-                        selected_queue = selected_queue.next();
+                        match selected_tab {
+                            InQueue::Queue => {
+                                queue_list.next();
+                                selected_queue = selected_queue.next();
+                            }
+                            InQueue::Details => {
+                                
+                               //ici changement entre les message de details  avec next et previous
+                            }
+                        }
                     }
                     KeyCode::Enter => {
                         a = a + 1;
@@ -308,6 +360,12 @@ impl Commands {
                             a = a - 1;
                         }
                         scroll = (a, b);
+                    }
+                    KeyCode::Left => {
+                        selected_tab = InQueue::Queue;
+                    }
+                    KeyCode::Right => {
+                        selected_tab = InQueue::Details;
                     }
                     _ => {}
                 }
@@ -346,7 +404,12 @@ impl Commands {
     #[inline]
     fn details_page<'b>(message_list: &MessageList<'b>) -> List<'b> {
         let details = List::new(message_list.message.clone())
-            .block(Block::default().borders(Borders::ALL).title("Details"));
+            .block(Block::default().borders(Borders::ALL).title("Details"))
+            .highlight_style(
+            Style::default()
+                .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol(">> ");
         details
     }
     #[inline]
