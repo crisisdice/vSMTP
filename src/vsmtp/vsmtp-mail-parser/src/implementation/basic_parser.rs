@@ -12,13 +12,16 @@ impl MailParser for BasicParser {
         let mut stream = raw.iter();
 
         for line in stream.by_ref() {
-            if line == b"\r\n" {
+            if line == b"\n" {
                 break;
             }
-            if !line.first().map_or(false, |c| [b' ', b'\t'].contains(c)) && !line.contains(&b':') {
+
+            // FIXME: this is wrong, does not support folded headers.
+            if !line.first().map_or(false, u8::is_ascii_whitespace) && !line.contains(&b':') {
                 body.push_str(std::str::from_utf8(line).unwrap());
                 break;
             }
+
             headers.push(String::from_utf8(line.clone()).expect("todo: handle non utf8"));
         }
 

@@ -44,11 +44,11 @@ impl TryFrom<&str> for MessageBody {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let mut bytes = vec![];
-        let splitted = value.split("\r\n").collect::<Vec<_>>();
+        let splitted = value.split('\n').collect::<Vec<_>>();
         for (idx, mut line) in splitted.iter().map(|l| l.as_bytes().to_vec()).enumerate() {
             bytes.push({
                 if idx != splitted.len() - 1 {
-                    line.extend_from_slice(b"\r\n");
+                    line.extend_from_slice(b"\n");
                 }
                 line
             });
