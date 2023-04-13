@@ -398,3 +398,5 @@ pub enum Verb {
     /// unknown.
     Unknown,
 }
+
+pub type CommandBatches = Vec<Command<Verb, UnparsedArgs>>;

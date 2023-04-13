@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{command::Command, Error, UnparsedArgs, Verb};
+use crate::{command::Command, Error, UnparsedArgs, Verb, command::CommandBatches};
 use tokio::io::AsyncReadExt;
 use vsmtp_common::Reply;
 
@@ -23,6 +23,28 @@ fn find(bytes: &[u8], search: &[u8]) -> Option<usize> {
     bytes
         .windows(search.len())
         .position(|window| window == search)
+}
+
+fn rfind(bytes: &[u8], search: &[u8]) -> Option<usize> {
+    bytes
+        .windows(search.len())
+        .rposition(|i| i.iter().eq(search.iter()))
+}
+
+fn parse_command(line: Vec<u8>) -> Result<Command<Verb, UnparsedArgs>, Error> {
+    // TODO: put value as a parameter
+    if line.len() >= 512 {
+        Err(Error::BufferTooLong { expected: 512, got: line.len() })
+    } else {
+        Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
+            line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
+        }).map_or_else(
+            || (Verb::Unknown, UnparsedArgs(line.clone())),
+            |verb| { (
+                verb.parse().expect("verb found above"),
+                UnparsedArgs(line[verb.len()..].to_vec()),
+            ) }))
+    }
 }
 
 /// Stream for reading commands from the client.
@@ -51,6 +73,36 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
     #[allow(clippy::missing_const_for_fn)]
     pub fn into_inner(self) -> R {
         self.inner
+    }
+
+    /// Produce a stream of raw received chunks.
+    #[inline]
+    #[allow(clippy::todo, clippy::missing_panics_doc)]
+    pub fn as_raw_chunk(
+        &mut self,
+    ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + '_ {
+        async_stream::try_stream! {
+            let mut buffer = bytes::BytesMut::with_capacity(self.initial_capacity);
+            let mut n = 0;
+
+            loop {
+                if let Some(pos) = rfind(&buffer[..n], b"\r\n") {
+                    let out = buffer.split_to(pos + 2);
+                    n -= out.len();
+                    yield Vec::<u8>::from(out);
+                } else {
+                    buffer.reserve(self.additional_reserve);
+                    let read_size = self.inner.read_buf(&mut buffer).await?;
+                    if read_size == 0 {
+                        if !buffer.is_empty() {
+                            todo!("what about the remaining buffer? {:?}", buffer);
+                        }
+                        return;
+                    }
+                    n += read_size;
+                }
+            }
+        }
     }
 
     /// Produce a stream of "\r\n" terminated lines.
@@ -127,23 +179,30 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
     ) -> impl tokio_stream::Stream<Item = Result<Command<Verb, UnparsedArgs>, Error>> + '_ {
         async_stream::stream! {
             for await line in self.as_line_stream() {
-                let line = line?;
+                yield parse_command(line?);
+            }
+        }
+    }
 
-                // TODO: put value as a parameter
-                if line.len() >= 512 {
-                    yield Err(Error::BufferTooLong { expected: 512, got: line.len() });
-                    return;
+    /// Produce a stream of ESMTP commands.
+    #[inline]
+    #[allow(clippy::expect_used)]
+    #[allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::restriction)]
+    pub fn as_batch_stream(
+        &mut self,
+    ) -> impl tokio_stream::Stream<Item = Result<CommandBatches, Error>> + '_ {
+        async_stream::stream! {
+            for await raw_chunk in self.as_raw_chunk() {
+                let mut batch = CommandBatches::new();
+                if let Ok(chunk) = raw_chunk {
+                    while let Some(pos) = find(&chunk, b"\r\n") {
+                        let (line, _) = chunk.split_at(pos);
+                        if let Ok(command) = parse_command(line.to_vec()) {
+                            batch.push(command);
+                        }
+                    }
                 }
-
-                yield Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
-                    line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
-                }).map_or_else(
-                    || (Verb::Unknown, UnparsedArgs(line.clone())),
-                    |verb| { (
-                        verb.parse().expect("verb found above"),
-                        UnparsedArgs(line[verb.len()..].to_vec()),
-                    ) },
-                ));
+                yield Ok(batch);
             }
         }
     }
@@ -181,5 +240,19 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
                     .map_err(|e| Error::ParsingError(e.to_string()));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reader_rfind() {
+        assert_eq!(Some(1), rfind(&[1, 2, 3, 1], &[2]));
+        assert_eq!(Some(0), rfind(&[1, 2, 3, 1, 3, 2, 1], &[1, 2, 3]));
+        assert_eq!(Some(6), rfind(&[1, 2, 3, 3, 3, 1, 3, 3], &[3, 3]));
+        assert_eq!(Some(6), rfind(&[1, 2, 3, 3, 3, 1, 0, 3], &[0, 3]));
+        assert_eq!(None, rfind(&[], &[2]));
     }
 }
