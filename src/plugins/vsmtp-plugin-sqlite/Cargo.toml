@@ -1,18 +1,32 @@
 [package]
 name = "vsmtp_plugin_sqlite"
-version = "0.1.0"
+version = "2.2.1"
+license = "GPL-3.0-only"
 edition = "2021"
-authors = ["ibaylon"]
+authors = ["Team viridIT <https://viridit.com/>"]
+
+description = "A plugin for vSMTP that enable support for sqlite databases"
+
+homepage = "https://github.com/viridIT/vsmtp-plugin-redis"
+repository = "https://github.com/viridIT/vsmtp-plugin-redis"
+documentation = "https://docs.rs/crate/vsmtp-plugin-redis/"
+
+readme = "README.md"
+keywords = ["vsmtp", "redis"]
+categories = ["email", "database", "plugin"]
+
+rust-version = "1.66.1"
+publish = false
 
 [lib]
 # You could also use Rust's unstable ABI with "dylib".
 crate-type = ["cdylib"]
 
 [dependencies]
-vsmtp-rule-engine = { path = "../../vSMTP/src/vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=2.2.1", path = "../../vsmtp/vsmtp-rule-engine" }
 rhai = { version = "1.12" }
 r2d2 = { version = "0.8.10", default-features = false }
-rusqlite = { version = "0.28.0", features = ["bundled"] }
+rusqlite = { version = "0.29.0", features = ["bundled"] }
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
 humantime-serde = { version = "1.1.1", default-features = false }
 smartstring = { version = "*", features = ["proptest", "serde"] }

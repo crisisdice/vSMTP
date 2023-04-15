@@ -17,7 +17,7 @@
 
 use std::str::FromStr;
 
-use rusqlite::{Result};
+use rusqlite::Result;
 
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -52,9 +52,7 @@ pub struct ConnectionManager {
 
 impl ConnectionManager {
     pub fn new(path: String) -> Self {
-        Self {
-            path,
-        }
+        Self { path }
     }
 }
 
@@ -67,7 +65,8 @@ impl r2d2::ManageConnection for ConnectionManager {
     }
 
     fn is_valid(&self, conn: &mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
-        rusqlite::Connection::query_row(conn, "SELECT sqlite_version()", (), |row| row.get(0)).map(|_: String| ())
+        rusqlite::Connection::query_row(conn, "SELECT sqlite_version()", (), |row| row.get(0))
+            .map(|_: String| ())
     }
 
     fn has_broken(&self, conn: &mut rusqlite::Connection) -> bool {
@@ -94,7 +93,7 @@ impl rusqlite::types::FromSql for Wrapper {
             rusqlite::types::Value::Integer(v) => Ok(Wrapper(rhai::Dynamic::from_int(v))),
             rusqlite::types::Value::Real(v) => Ok(Wrapper(rhai::Dynamic::from_float(v))),
             rusqlite::types::Value::Text(v) => Ok(Wrapper(Dynamic::from(v))),
-            rusqlite::types::Value::Blob(v) => Ok(Wrapper(Dynamic::from(String::from_utf8(v))))
+            rusqlite::types::Value::Blob(v) => Ok(Wrapper(Dynamic::from(String::from_utf8(v)))),
         }
     }
 }
@@ -108,7 +107,11 @@ impl SQLiteConnector {
                 let mut stmt = client
                     .prepare(query)
                     .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?;
-                let column_names = stmt.column_names().into_iter().map(|c| c.to_string()).collect::<Vec<_>>();
+                let column_names = stmt
+                    .column_names()
+                    .into_iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>();
                 let mut rows = stmt
                     .query([])
                     .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?;
@@ -125,18 +128,22 @@ impl SQLiteConnector {
                                             None => break,
                                         };
                                         values.insert(
-                                            smartstring::SmartString::from_str(name).
-                                                map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?,
-                                            value.0
+                                            smartstring::SmartString::from_str(name)
+                                                .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
+                                                    err.to_string().into()
+                                                })?,
+                                            value.0,
                                         );
                                         index += 1;
-                                        continue
-                                    },
-                                    Err(e) if e.to_string().contains("Invalid column index") => break,
-                                    Err(_) => break
+                                        continue;
+                                    }
+                                    Err(e) if e.to_string().contains("Invalid column index") => {
+                                        break
+                                    }
+                                    Err(_) => break,
                                 }
                             }
-                        },
+                        }
                         Ok(None) => break,
                         Err(_) => break,
                     }

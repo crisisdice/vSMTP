@@ -15,9 +15,6 @@
  *
 */
 
-use crate::api::sqlite_api;
-use rhai::Engine;
-
 #[test]
 fn test_query() {
     let engine = Engine::new();
@@ -32,9 +29,21 @@ fn test_query() {
     );
     let mut server = sqlite_api::connect(map.unwrap()).unwrap();
     sqlite_api::query_str(&mut server, "CREATE TABLE sharks(id integer NOT NULL, name text NOT NULL, sharktype text NOT NULL, length integer NOT NULL);").unwrap();
-    sqlite_api::query_str(&mut server, "INSERT INTO sharks VALUES (1, \"Sammy\", \"Greenland Shark\", 427);").unwrap();
-    sqlite_api::query_str(&mut server, "INSERT INTO sharks VALUES (2, \"Alyoshka\", \"Great White Shark\", 600);").unwrap();
-    sqlite_api::query_str(&mut server, "INSERT INTO sharks VALUES (3, \"Himari\", \"Megaladon\", 1800);").unwrap();
+    sqlite_api::query_str(
+        &mut server,
+        "INSERT INTO sharks VALUES (1, \"Sammy\", \"Greenland Shark\", 427);",
+    )
+    .unwrap();
+    sqlite_api::query_str(
+        &mut server,
+        "INSERT INTO sharks VALUES (2, \"Alyoshka\", \"Great White Shark\", 600);",
+    )
+    .unwrap();
+    sqlite_api::query_str(
+        &mut server,
+        "INSERT INTO sharks VALUES (3, \"Himari\", \"Megaladon\", 1800);",
+    )
+    .unwrap();
     sqlite_api::query_str(&mut server, "SELECT * FROM sharks;").unwrap();
     dbg!(sqlite_api::query_str(&mut server, "SELECT * FROM sharks;")).unwrap();
 }
