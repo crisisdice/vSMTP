@@ -1,0 +1,8 @@
+import "plugins/libvsmtp_plugin_sqlite" as sqlite;
+
+// A service used to connect to and query our greylist database.
+export const greylist = sqlite::connect(#{
+    path: "greylist.db",
+    connections: 4,
+    timeout: "3s"
+});
