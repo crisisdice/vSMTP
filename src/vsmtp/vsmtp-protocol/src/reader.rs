@@ -31,19 +31,72 @@ fn rfind(bytes: &[u8], search: &[u8]) -> Option<usize> {
         .rposition(|i| i.iter().eq(search.iter()))
 }
 
-fn parse_command(line: Vec<u8>) -> Result<Command<Verb, UnparsedArgs>, Error> {
-    // TODO: put value as a parameter
-    if line.len() >= 512 {
-        Err(Error::BufferTooLong { expected: 512, got: line.len() })
-    } else {
-        Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
-            line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
-        }).map_or_else(
-            || (Verb::Unknown, UnparsedArgs(line.clone())),
-            |verb| { (
-                verb.parse().expect("verb found above"),
-                UnparsedArgs(line[verb.len()..].to_vec()),
-            ) }))
+/// Reader for TCP window
+/// it is used only for the internal reader logic and is not exposed to external.
+struct ReaderWindow<'a, R: tokio::io::AsyncRead + Unpin + Send> {
+    inner: &'a mut R,
+    buffer: bytes::BytesMut,
+    n: usize,
+    initial_capacity: usize,
+    additional_reserve: usize,
+
+}
+
+impl<'x, R> ReaderWindow<'x, R>
+where
+    R: tokio::io::AsyncRead + Unpin + Send,
+{
+    fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
+    fn get_remaining(&self) -> Option<bytes::BytesMut> {
+        if self.buffer.len() > 0 {
+            Some(self.buffer.split_to(self.buffer.len() - 1))
+        } else {
+            None
+        }
+    }
+
+    async fn flush_window<'a: 'x>(
+        &'a mut self
+    ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + 'a {
+        async_stream::try_stream! {
+            let mut buffer = bytes::BytesMut::with_capacity(self.initial_capacity);
+            let mut n = 0;
+
+            loop {
+                if let Some(pos) = find(&buffer[..n], b"\r\n") {
+                    let out = buffer.split_to(pos + 2);
+                    n -= out.len();
+                    yield Vec::<u8>::from(out);
+                } else {
+                    buffer.reserve(self.additional_reserve);
+                    let read_size = self.inner.read_buf(&mut buffer).await?;
+                    if read_size == 0 {
+                        // yield Vec::<u8>::new();
+                        if let Some(remainingBuffer) = self.get_remaining() {
+                            yield Vec::<u8>::from(remainingBuffer);
+                        }
+                    }
+                    n += read_size;
+                }
+            }
+        }
+    }
+}
+
+impl<R> tokio_stream::Stream for ReaderWindow<'_, R>
+where
+    R: tokio::io::AsyncRead + Unpin + Send,
+{
+    type Item = std::io::Result<Vec<u8>>;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        todo!()
     }
 }
 
@@ -75,35 +128,29 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
         self.inner
     }
 
-    /// Produce a stream of raw received chunks.
-    #[inline]
-    #[allow(clippy::todo, clippy::missing_panics_doc)]
-    pub fn as_raw_chunk(
-        &mut self,
-    ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + '_ {
-        async_stream::try_stream! {
-            let mut buffer = bytes::BytesMut::with_capacity(self.initial_capacity);
-            let mut n = 0;
-
-            loop {
-                if let Some(pos) = rfind(&buffer[..n], b"\r\n") {
-                    let out = buffer.split_to(pos + 2);
-                    n -= out.len();
-                    yield Vec::<u8>::from(out);
-                } else {
-                    buffer.reserve(self.additional_reserve);
-                    let read_size = self.inner.read_buf(&mut buffer).await?;
-                    if read_size == 0 {
-                        if !buffer.is_empty() {
-                            todo!("what about the remaining buffer? {:?}", buffer);
-                        }
-                        return;
-                    }
-                    n += read_size;
-                }
-            }
+    // instantiate a new ReaderWindow object from an existing reader
+    fn to_window_reader(&mut self) -> ReaderWindow<'_, R> {
+        ReaderWindow {
+            inner: &mut self.inner,
+            buffer: bytes::BytesMut::with_capacity(self.initial_capacity),
+            n: 0,
+            initial_capacity: self.initial_capacity,
+            additional_reserve: self.additional_reserve,
         }
     }
+
+    ///
+    #[inline]
+    pub async fn full_window(&mut self) -> Vec<Vec<u8>> {
+        let mut output = vec![];
+        let mut window_reader = self.to_window_reader();
+
+        while !window_reader.is_empty() {
+            output.extend(window_reader.flush_window().await);
+        }
+        output
+    }
+
 
     /// Produce a stream of "\r\n" terminated lines.
     #[inline]
@@ -171,6 +218,7 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
         }
     }
 
+
     /// Produce a stream of ESMTP commands.
     #[inline]
     #[allow(clippy::expect_used)]
@@ -179,34 +227,26 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
     ) -> impl tokio_stream::Stream<Item = Result<Command<Verb, UnparsedArgs>, Error>> + '_ {
         async_stream::stream! {
             for await line in self.as_line_stream() {
-                yield parse_command(line?);
-            }
-        }
-    }
+                let line = line?;
 
-    /// Produce a stream of ESMTP commands.
-    #[inline]
-    #[allow(clippy::expect_used)]
-    #[allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::restriction)]
-    pub fn as_batch_stream(
-        &mut self,
-    ) -> impl tokio_stream::Stream<Item = Result<CommandBatches, Error>> + '_ {
-        async_stream::stream! {
-            for await raw_chunk in self.as_raw_chunk() {
-                let mut batch = CommandBatches::new();
-                if let Ok(chunk) = raw_chunk {
-                    while let Some(pos) = find(&chunk, b"\r\n") {
-                        let (line, _) = chunk.split_at(pos);
-                        if let Ok(command) = parse_command(line.to_vec()) {
-                            batch.push(command);
-                        }
-                    }
+                // TODO: put value as a parameter
+                if line.len() >= 512 {
+                    yield Err(Error::BufferTooLong { expected: 512, got: line.len() });
+                    return;
                 }
-                yield Ok(batch);
+
+                yield Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
+                    line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
+                }).map_or_else(
+                    || (Verb::Unknown, UnparsedArgs(line.clone())),
+                    |verb| { (
+                        verb.parse().expect("verb found above"),
+                        UnparsedArgs(line[verb.len()..].to_vec()),
+                    ) },
+                ));
             }
         }
     }
-
     /// Produce a stream of SMTP replies.
     #[inline]
     pub fn as_reply_stream(
@@ -246,6 +286,7 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio_stream::StreamExt;
 
     #[test]
     fn reader_rfind() {
@@ -255,4 +296,80 @@ mod tests {
         assert_eq!(Some(6), rfind(&[1, 2, 3, 3, 3, 1, 0, 3], &[0, 3]));
         assert_eq!(None, rfind(&[], &[2]));
     }
+
+    #[tokio::test]
+    async fn read_buffer() {
+        let buffer =
+            format!("AUTH PLAIN {}\r\nzaeaz\r\n", base64::encode("a very lon user name zjaieajro eaorheor\0 aerouaehro zaheeao hear ieajri jeai jear ae ea\0 earoe azjrieapi zaeazkej oaijei")).into_bytes();
+
+        dbg!(std::str::from_utf8(&buffer).unwrap());
+        dbg!(buffer.len());
+
+        let r = std::io::Cursor::new(buffer);
+
+        let mut reader = super::Reader::new(r);
+        let stream = reader.as_line_stream();
+        tokio::pin!(stream);
+
+        while let Some(l) = stream.next().await {
+            println!("{:?}", l);
+        }
+    }
+
+    #[tokio::test]
+    async fn pipelining_empty() {
+        let input = [
+            "MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n",
+            "RCPT TO:<ned@innosoft.com>\r\n",
+            "RCPT TO:<dan@innosoft.com>\r\n",
+            "RCPT TO:<kvc@innosoft.com>\r\n",
+        ]
+        .concat();
+
+        let cursor = std::io::Cursor::new(input);
+        let mut reader = super::Reader::new(cursor);
+        let mut window = reader.to_window_reader();
+
+        let output = window.flush_window().await;
+
+        assert!(window.is_empty());
+        assert_eq!(
+            output,
+            [
+                b"MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n".to_vec(),
+                b"RCPT TO:<ned@innosoft.com>\r\n".to_vec(),
+                b"RCPT TO:<dan@innosoft.com>\r\n".to_vec(),
+                b"RCPT TO:<kvc@innosoft.com>\r\n".to_vec(),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn pipelining_non_empty() {
+        let input = [
+            "MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n",
+            "RCPT TO:<ned@innosoft.com>\r\n",
+            "RCPT TO:<dan@innosoft.com>\r\n",
+            "RCPT TO:<kvc@innosoft.com>",
+        ]
+        .concat();
+
+        let cursor = std::io::Cursor::new(input);
+        let mut reader = super::Reader::new(cursor);
+        let mut window = reader.window();
+
+        let output = window.flush_window().await;
+
+        assert!(!window.is_empty());
+        assert_eq!(
+            output,
+            [
+                b"MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n".to_vec(),
+                b"RCPT TO:<ned@innosoft.com>\r\n".to_vec(),
+                b"RCPT TO:<dan@innosoft.com>\r\n".to_vec(),
+                b"RCPT TO:<kvc@innosoft.com>\r\n".to_vec(),
+            ]
+        );
+    }
+
 }
