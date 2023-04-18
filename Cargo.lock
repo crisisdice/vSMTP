@@ -4916,6 +4916,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vsmtp-plugin-dnsbl"
+version = "2.2.1"
+dependencies = [
+ "humantime-serde",
+ "rhai",
+ "serde",
+]
+
+[[package]]
 name = "vsmtp-plugin-ldap"
 version = "2.2.1"
 dependencies = [
