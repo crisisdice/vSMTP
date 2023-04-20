@@ -14,9 +14,46 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{receiver::ErrorCounter, ReceiverContext, ReceiverHandler};
+use crate::{receiver::ErrorCounter, ReceiverContext, ReceiverHandler, Verb};
 use tokio::io::AsyncWriteExt;
 use vsmtp_common::Reply;
+
+struct WindowWriter<W: tokio::io::AsyncWrite + Unpin + Send> {
+    inner: W,
+    buffer: Vec<Reply>,
+    unbufferable_commands: Vec<Verb>,
+}
+
+impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
+    #[inline]
+    #[must_use]
+    pub fn new(inner: W) -> Self {
+        Self {
+            inner,
+            buffer: Vec::<Reply>::new(),
+            // FIXME: missing VRFY, EXPN, TURN
+            unbufferable_commands: vec![
+                Verb::Ehlo, Verb::Data, Verb::Quit, Verb::Noop
+            ]
+        }
+    }
+
+    fn reserve(&self, size: usize) {
+        self.buffer.reserve(size);
+    }
+
+    fn reply(&self, reply: Reply, verb: Verb) {
+        if self.unbufferable_commands.contains(&verb) {
+            // send reply
+        } else {
+            self.buffer.push(reply);
+        }
+    }
+
+    fn flush(&self) {
+        // let full_response = self.buffer.concat();
+    }
+}
 
 /// Sink for sending reply to the client
 pub struct Writer<W: tokio::io::AsyncWrite + Unpin + Send> {
