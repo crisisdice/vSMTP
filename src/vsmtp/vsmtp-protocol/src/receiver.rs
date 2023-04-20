@@ -392,32 +392,34 @@ where
 
         let command_stream = self
             .stream
-            .as_command_stream()
+            .as_window_stream()
             .timeout(std::time::Duration::from_secs(30));
         tokio::pin!(command_stream);
 
-        loop {
-            let command = match command_stream.try_next().await {
-                Ok(Some(command)) => command,
-                Ok(None) => return Ok(HandshakeOutcome::Quit),
-                Err(e) => {
-                    tracing::warn!("Closing after {} without receiving a command", e);
-                    #[allow(clippy::expect_used)]
-                    self.sink
-                        .send_reply(
-                            &mut self.context,
-                            &mut self.error_counter,
-                            &mut self.handler,
-                            "451 Timeout - closing connection\r\n"
-                                .parse()
-                                .expect("valid syntax"),
-                        )
-                        .await?;
+        let commands_batch = match command_stream.try_next().await {
+            Ok(Some(Ok(commands_batch))) => commands_batch,
+            Ok(None | Some(Err(_)))=> return Ok(HandshakeOutcome::Quit), // FIXME: remove intermediate result
+            Err(e) => {
+                tracing::warn!("Closing after {} without receiving a command", e);
+                #[allow(clippy::expect_used)]
+                self.sink
+                    .send_reply(
+                        &mut self.context,
+                        &mut self.error_counter,
+                        &mut self.handler,
+                        "451 Timeout - closing connection\r\n"
+                            .parse()
+                            .expect("valid syntax"),
+                    )
+                    .await?;
 
-                    return Ok(HandshakeOutcome::Quit);
-                }
-            };
-
+                return Ok(HandshakeOutcome::Quit);
+            }
+        };
+        // FIXME: missing loop
+        let replies = Vec::<vsmtp_common::Reply>::new();
+        replies.reserve(commands_batch.len());
+        for command in commands_batch {
             let (verb, args) = match command {
                 Ok(command) => command,
                 Err(e) => match e {
@@ -449,7 +451,7 @@ where
                 },
             };
             tracing::trace!("<< {:?} ; {:?}", verb, std::str::from_utf8(&args.0));
-
+    
             let stage = self.handler.get_stage();
             let reply = match (verb, stage) {
                 (Verb::Helo, _) => Some(handle_args!(HeloArgs, args, on_helo)),
@@ -480,22 +482,22 @@ where
                 (Verb::Unknown, _) => Some(self.handler.on_unknown(args.0).await),
                 otherwise => Some(self.handler.on_bad_sequence(otherwise).await),
             };
-
             if let Some(reply) = reply {
-                self.sink
-                    .send_reply(
-                        &mut self.context,
-                        &mut self.error_counter,
-                        &mut self.handler,
-                        reply,
-                    )
-                    .await?;
+                replies.push(reply);
+                // self.sink
+                //     .send_reply(
+                //         &mut self.context,
+                //         &mut self.error_counter,
+                //         &mut self.handler,
+                //         reply,
+                //     )
+                //     .await?;
             }
+        }
 
-            let produced_context = std::mem::take(&mut self.context);
-            if let Some(done) = produced_context.outcome {
-                return Ok(done);
-            }
+        let produced_context = std::mem::take(&mut self.context);
+        if let Some(done) = produced_context.outcome {
+            return Ok(done);
         }
     }
 }
