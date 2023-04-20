@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{command::Command, Error, UnparsedArgs, Verb};
+use crate::{command::Command, command::Batch, Error, UnparsedArgs, Verb};
 use tokio::io::AsyncReadExt;
 use vsmtp_common::Reply;
 
@@ -23,6 +23,26 @@ fn find(bytes: &[u8], search: &[u8]) -> Option<usize> {
     bytes
         .windows(search.len())
         .position(|window| window == search)
+}
+
+#[allow(clippy::expect_used)]
+fn parse_command_line(line: &Vec<u8>) -> Result<Command<Verb, UnparsedArgs>, Error> {
+    // TODO: put max len as a parameter
+    if line.len() >= 512 {
+        return Err(Error::BufferTooLong { expected: 512, got: line.len() })
+    }
+    if find(line, b"\r\n").is_none() { // TODO: not sure this is exact needed behavior
+        return Err(Error::ParsingError("No CRLF found".to_owned()))
+    }
+    Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
+        line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
+    }).map_or_else(
+        || (Verb::Unknown, UnparsedArgs(line.clone())),
+        |verb| { (
+            verb.parse().expect("verb found above"),
+            UnparsedArgs(line[verb.len()..].to_vec()),
+        ) },
+    ))
 }
 
 /// Reader for TCP window
@@ -114,18 +134,18 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
     #[inline]
     pub fn as_window_stream(
         &mut self
-    ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<Vec<u8>>>> + '_ {
+    ) -> impl tokio_stream::Stream<Item = std::io::Result<Batch>> + '_ {
         async_stream::stream! {
-            let mut output: Vec<Vec<u8>> = vec![];
+            let mut batch: Batch = vec![];
             let mut window_reader = self.to_window_reader();
 
             for await window in window_reader.flush_window() {
-                output.extend(window);
+                let window = window?;
+                batch.push(parse_command_line(&window));
             }
-            yield Ok(output);
+            yield Ok(batch);
         }
     }
-
 
     /// Produce a stream of "\r\n" terminated lines.
     #[inline]
@@ -196,29 +216,13 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
 
     /// Produce a stream of ESMTP commands.
     #[inline]
-    #[allow(clippy::expect_used)]
     pub fn as_command_stream(
         &mut self,
     ) -> impl tokio_stream::Stream<Item = Result<Command<Verb, UnparsedArgs>, Error>> + '_ {
         async_stream::stream! {
             for await line in self.as_line_stream() {
                 let line = line?;
-
-                // TODO: put value as a parameter
-                if line.len() >= 512 {
-                    yield Err(Error::BufferTooLong { expected: 512, got: line.len() });
-                    return;
-                }
-
-                yield Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
-                    line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
-                }).map_or_else(
-                    || (Verb::Unknown, UnparsedArgs(line.clone())),
-                    |verb| { (
-                        verb.parse().expect("verb found above"),
-                        UnparsedArgs(line[verb.len()..].to_vec()),
-                    ) },
-                ));
+                yield parse_command_line(&line);
             }
         }
     }
@@ -261,6 +265,8 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
 #[cfg(test)]
 mod tests {
     use tokio_stream::StreamExt;
+
+    use crate::{command::{self, Batch}, Error};
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
@@ -306,6 +312,19 @@ mod tests {
         );
     }
 
+    #[allow(clippy::unwrap_used, clippy::restriction)]
+    fn assert_cmd_batch(to_evaluate: &Batch, to_compare: &Batch) {
+        for (i, cmd) in to_evaluate.iter().enumerate() {
+            cmd.as_ref().map_or_else(|_| {
+                assert!(to_compare[i].is_err());
+            },
+            |cmd| {
+                let expected_cmd = to_compare[i].as_ref().unwrap();
+                assert_eq!(cmd, expected_cmd);
+            });
+        }
+    }
+
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn window_stream_single_lines() {
@@ -321,12 +340,12 @@ mod tests {
             .timeout(std::time::Duration::from_secs(30));
         tokio::pin!(stream);
         let output = stream.try_next().await.unwrap().unwrap().unwrap();
-        assert_eq!(
-            output,
-            [
-                b"MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n".to_vec(),
-            ].to_vec()
-        );
+        let expected = vec![
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::MailFrom, command::UnparsedArgs(b"<mrose@dbc.mtview.ca.us>\r\n".to_vec()))
+            )
+        ];
+        assert_cmd_batch(&output, &expected);
     }
 
     #[allow(clippy::unwrap_used)]
@@ -347,15 +366,21 @@ mod tests {
             .timeout(std::time::Duration::from_secs(30));
         tokio::pin!(stream);
         let output = stream.try_next().await.unwrap().unwrap().unwrap();
-        assert_eq!(
-            output,
-            [
-                b"MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n".to_vec(),
-                b"RCPT TO:<ned@innosoft.com>\r\n".to_vec(),
-                b"RCPT TO:<dan@innosoft.com>\r\n".to_vec(),
-                b"RCPT TO:<kvc@innosoft.com>\r\n".to_vec(),
-            ].to_vec()
-        );
+        let expected = vec![
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::MailFrom, command::UnparsedArgs(b"<mrose@dbc.mtview.ca.us>\r\n".to_vec()))
+            ),
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::RcptTo, command::UnparsedArgs(b"<ned@innosoft.com>\r\n".to_vec())),
+            ),
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::RcptTo, command::UnparsedArgs(b"<dan@innosoft.com>\r\n".to_vec())),
+            ),
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::RcptTo, command::UnparsedArgs(b"<kvc@innosoft.com>\r\n".to_vec())),
+            )
+        ];
+        assert_cmd_batch(&output, &expected);
     }
 
     #[allow(clippy::unwrap_used)]
@@ -376,15 +401,21 @@ mod tests {
             .timeout(std::time::Duration::from_secs(30));
         tokio::pin!(stream);
         let output = stream.try_next().await.unwrap().unwrap().unwrap();
-        assert_eq!(
-            output,
-            [
-                b"MAIL FROM:<mrose@dbc.mtview.ca.us>\r\n".to_vec(),
-                b"RCPT TO:<ned@innosoft.com>\r\n".to_vec(),
-                b"RCPT TO:<dan@innosoft.com>\r\n".to_vec(),
-                b"RCPT TO:<kvc@innosoft.com>".to_vec(),
-            ].to_vec()
-        );
+        let expected = vec![
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::MailFrom, command::UnparsedArgs(b"<mrose@dbc.mtview.ca.us>\r\n".to_vec()))
+            ),
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::RcptTo, command::UnparsedArgs(b"<ned@innosoft.com>\r\n".to_vec())),
+            ),
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Ok(
+                (command::Verb::RcptTo, command::UnparsedArgs(b"<dan@innosoft.com>\r\n".to_vec())),
+            ),
+            std::result::Result::<(command::Verb, command::UnparsedArgs), Error>::Err(
+                Error::ParsingError("No CRLF found".to_owned())
+            )
+        ];
+        assert_cmd_batch(&output, &expected);
     }
 
     #[allow(clippy::unwrap_used)]

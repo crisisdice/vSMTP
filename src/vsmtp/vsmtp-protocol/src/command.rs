@@ -15,11 +15,12 @@
  *
 */
 
-use crate::ConnectionKind;
+use crate::{ConnectionKind, Error};
 use vsmtp_common::{auth::Mechanism, ClientName, Domain};
 extern crate alloc;
 
 /// Buffer received from the client.
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct UnparsedArgs(pub Vec<u8>);
 
@@ -344,7 +345,7 @@ impl TryFrom<UnparsedArgs> for RcptToArgs {
 }
 
 /// SMTP Command.
-#[derive(Debug, strum::AsRefStr, strum::EnumString, strum::EnumVariantNames)]
+#[derive(Debug, strum::AsRefStr, strum::EnumString, strum::EnumVariantNames, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Verb {
     /// Used to identify the SMTP client to the SMTP server. (historical)
@@ -398,3 +399,5 @@ pub enum Verb {
     /// unknown.
     Unknown,
 }
+
+pub type Batch = Vec<Result<Command<Verb, UnparsedArgs>, Error>>;
