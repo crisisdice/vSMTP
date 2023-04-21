@@ -396,108 +396,106 @@ where
             .timeout(std::time::Duration::from_secs(30));
         tokio::pin!(command_stream);
 
-        let commands_batch = match command_stream.try_next().await {
-            Ok(Some(Ok(commands_batch))) => commands_batch,
-            Ok(None | Some(Err(_)))=> return Ok(HandshakeOutcome::Quit), // FIXME: remove intermediate result
-            Err(e) => {
-                tracing::warn!("Closing after {} without receiving a command", e);
-                #[allow(clippy::expect_used)]
-                self.sink
-                    .send_reply(
-                        &mut self.context,
-                        &mut self.error_counter,
-                        &mut self.handler,
-                        "451 Timeout - closing connection\r\n"
-                            .parse()
-                            .expect("valid syntax"),
-                    )
-                    .await?;
-
-                return Ok(HandshakeOutcome::Quit);
-            }
-        };
-        // FIXME: missing loop
-        let replies = Vec::<vsmtp_common::Reply>::new();
-        replies.reserve(commands_batch.len());
-        for command in commands_batch {
-            let (verb, args) = match command {
-                Ok(command) => command,
-                Err(e) => match e {
-                    Error::BufferTooLong { expected, got } => {
-                        let reply = self
-                            .handler
-                            .on_args_error(ParseArgsError::BufferTooLong { expected, got })
-                            .await;
-                        self.sink
-                            .send_reply(
-                                &mut self.context,
-                                &mut self.error_counter,
-                                &mut self.handler,
-                                reply,
-                            )
-                            .await?;
-                        continue;
-                    }
-                    Error::Io(io) => return Err(io),
-                    Error::Utf8(e) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            e.to_string(),
-                        ))
-                    }
-                    Error::ParsingError(e) => {
-                        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    }
-                },
-            };
-            tracing::trace!("<< {:?} ; {:?}", verb, std::str::from_utf8(&args.0));
+        loop {
+            let commands_batch = match command_stream.try_next().await {
+                Ok(Some(Ok(commands_batch))) => commands_batch,
+                Ok(None | Some(Err(_)))=> return Ok(HandshakeOutcome::Quit), // FIXME: remove intermediate result
+                Err(e) => {
+                    tracing::warn!("Closing after {} without receiving a command", e);
+                    #[allow(clippy::expect_used)]
+                    self.sink
+                        .send_reply(
+                            &mut self.context,
+                            &mut self.error_counter,
+                            &mut self.handler,
+                            "451 Timeout - closing connection\r\n"
+                                .parse()
+                                .expect("valid syntax"),
+                        )
+                        .await?;
     
-            let stage = self.handler.get_stage();
-            let reply = match (verb, stage) {
-                (Verb::Helo, _) => Some(handle_args!(HeloArgs, args, on_helo)),
-                (Verb::Ehlo, _) => Some(handle_args!(EhloArgs, args, on_ehlo)),
-                (Verb::Noop, _) => Some(self.handler.on_noop().await),
-                (Verb::Rset, _) => Some(self.handler.on_rset().await),
-                (Verb::StartTls, Stage::Connect | Stage::Helo) => {
-                    Some(self.handler.on_starttls(&mut self.context).await)
+                    return Ok(HandshakeOutcome::Quit);
                 }
-                (Verb::Auth, Stage::Connect | Stage::Helo) => {
-                    handle_args!(AuthArgs, args, Option: on_auth)
-                }
-                (Verb::MailFrom, Stage::Helo | Stage::MailFrom) => {
-                    Some(handle_args!(MailFromArgs, args, on_mail_from))
-                }
-                (Verb::RcptTo, Stage::MailFrom | Stage::RcptTo) => {
-                    Some(handle_args!(RcptToArgs, args, on_rcpt_to))
-                }
-                (Verb::Data, Stage::RcptTo) => {
-                    self.context.outcome = Some(HandshakeOutcome::Message);
-                    Some(self.handler.on_data().await)
-                }
-                (Verb::Quit, _) => {
-                    self.context.outcome = Some(HandshakeOutcome::Quit);
-                    Some(self.handler.on_quit().await)
-                }
-                (Verb::Help, _) => Some(self.handler.on_help(args).await),
-                (Verb::Unknown, _) => Some(self.handler.on_unknown(args.0).await),
-                otherwise => Some(self.handler.on_bad_sequence(otherwise).await),
             };
-            if let Some(reply) = reply {
-                replies.push(reply);
-                // self.sink
-                //     .send_reply(
-                //         &mut self.context,
-                //         &mut self.error_counter,
-                //         &mut self.handler,
-                //         reply,
-                //     )
-                //     .await?;
+            for command in commands_batch {
+                let (verb, args) = match command {
+                    Ok(command) => command,
+                    Err(e) => match e {
+                        Error::BufferTooLong { expected, got } => {
+                            let reply = self
+                                .handler
+                                .on_args_error(ParseArgsError::BufferTooLong { expected, got })
+                                .await;
+                            self.sink
+                                .send_reply(
+                                    &mut self.context,
+                                    &mut self.error_counter,
+                                    &mut self.handler,
+                                    reply,
+                                )
+                                .await?;
+                            continue;
+                        }
+                        Error::Io(io) => return Err(io),
+                        Error::Utf8(e) => {
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                e.to_string(),
+                            ))
+                        }
+                        Error::ParsingError(e) => {
+                            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                        }
+                    },
+                };
+                tracing::trace!("<< {:?} ; {:?}", verb, std::str::from_utf8(&args.0));
+        
+                let stage = self.handler.get_stage();
+                let reply = match (verb, stage) {
+                    (Verb::Helo, _) => Some(handle_args!(HeloArgs, args, on_helo)),
+                    (Verb::Ehlo, _) => Some(handle_args!(EhloArgs, args, on_ehlo)),
+                    (Verb::Noop, _) => Some(self.handler.on_noop().await),
+                    (Verb::Rset, _) => Some(self.handler.on_rset().await),
+                    (Verb::StartTls, Stage::Connect | Stage::Helo) => {
+                        Some(self.handler.on_starttls(&mut self.context).await)
+                    }
+                    (Verb::Auth, Stage::Connect | Stage::Helo) => {
+                        handle_args!(AuthArgs, args, Option: on_auth)
+                    }
+                    (Verb::MailFrom, Stage::Helo | Stage::MailFrom) => {
+                        Some(handle_args!(MailFromArgs, args, on_mail_from))
+                    }
+                    (Verb::RcptTo, Stage::MailFrom | Stage::RcptTo) => {
+                        Some(handle_args!(RcptToArgs, args, on_rcpt_to))
+                    }
+                    (Verb::Data, Stage::RcptTo) => {
+                        self.context.outcome = Some(HandshakeOutcome::Message);
+                        Some(self.handler.on_data().await)
+                    }
+                    (Verb::Quit, _) => {
+                        self.context.outcome = Some(HandshakeOutcome::Quit);
+                        Some(self.handler.on_quit().await)
+                    }
+                    (Verb::Help, _) => Some(self.handler.on_help(args).await),
+                    (Verb::Unknown, _) => Some(self.handler.on_unknown(args.0).await),
+                    otherwise => Some(self.handler.on_bad_sequence(otherwise).await),
+                };
+                if let Some(reply) = reply {
+                    self.sink
+                        .send_reply(
+                            &mut self.context,
+                            &mut self.error_counter,
+                            &mut self.handler,
+                            reply,
+                        )
+                        .await?;
+                }
             }
-        }
-
-        let produced_context = std::mem::take(&mut self.context);
-        if let Some(done) = produced_context.outcome {
-            return Ok(done);
+    
+            let produced_context = std::mem::take(&mut self.context);
+            if let Some(done) = produced_context.outcome {
+                return Ok(done);
+            }
         }
     }
 }
