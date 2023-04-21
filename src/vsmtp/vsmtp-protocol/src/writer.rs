@@ -25,6 +25,13 @@ pub struct WindowWriter<W: tokio::io::AsyncWrite + Unpin + Send> {
     unbufferable_commands: Vec<Verb>,
 }
 
+impl<W: tokio::io::AsyncWrite + Unpin + Send> AsMut<W> for WindowWriter<W> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut W {
+        &mut self.inner
+    }
+}
+
 impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
     #[inline]
     #[must_use]
@@ -96,13 +103,24 @@ impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
         reply
     }
 
+    pub async fn direct_send_reply<T: ReceiverHandler + Send>(
+        &mut self,
+        ctx: &mut ReceiverContext,
+        error_counter: &mut ErrorCounter,
+        handler: &mut T,
+        reply: Reply,
+    ) -> std::io::Result<()> {
+        let final_reply = self.handle_error(ctx, error_counter, handler, reply).await;
+        return self.write_all(final_reply.as_ref()).await;
+    }
+
     pub async fn send_reply<T: ReceiverHandler + Send>(
         &mut self,
         ctx: &mut ReceiverContext,
         error_counter: &mut ErrorCounter,
         handler: &mut T,
         reply: Reply,
-        verb: Verb,
+        verb: &Verb,
     ) -> std::io::Result<()> {
         let final_reply = self.handle_error(ctx, error_counter, handler, reply).await;
         if self.unbufferable_commands.contains(&verb) {

@@ -15,7 +15,7 @@
  *
 */
 use crate::{
-    reader::Reader, writer::Writer, AcceptArgs, AuthArgs, ConnectionKind, EhloArgs, Error,
+    reader::Reader, writer::WindowWriter, AcceptArgs, AuthArgs, ConnectionKind, EhloArgs, Error,
     HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs, ReceiverHandler, Verb,
 };
 use tokio_rustls::rustls;
@@ -89,7 +89,7 @@ pub struct Receiver<
     V::Value: Send + Sync,
 {
     pub(crate) handler: T,
-    pub(crate) sink: Writer<W>,
+    pub(crate) sink: WindowWriter<W>,
     pub(crate) stream: Reader<R>,
     error_counter: ErrorCounter,
     context: ReceiverContext,
@@ -141,7 +141,7 @@ where
             // FIXME: see https://github.com/tokio-rs/tls/issues/40
             let (read, write) = tokio::io::split(tls_tcp_stream);
 
-            let (stream, sink) = (Reader::new(read), Writer::new(write));
+            let (stream, sink) = (Reader::new(read), WindowWriter::new(write));
 
             let secured_receiver = Receiver {
                 sink,
@@ -177,7 +177,7 @@ where
         message_size_max: usize,
     ) -> Self {
         let (read, write) = tcp_stream.into_split();
-        let (stream, sink) = (Reader::new(read), Writer::new(write));
+        let (stream, sink) = (Reader::new(read), WindowWriter::new(write));
         Self {
             handler,
             sink,
@@ -237,7 +237,7 @@ where
             }
 
             self.sink
-                .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply_accept)
+                .direct_send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply_accept)
                 .await?;
 
             loop {
@@ -256,7 +256,7 @@ where
                             }
                         }
                         self.sink
-                            .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
+                            .direct_send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
                             .await?;
 
                         yield ();
@@ -273,7 +273,7 @@ where
 
                         let reply = self.handler.on_post_auth(&mut self.context, auth_result).await;
                         self.sink
-                            .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
+                            .direct_send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
                             .await?;
 
                         let produced_context = std::mem::take(&mut self.context);
@@ -317,7 +317,7 @@ where
             ).await;
 
             if self.kind == ConnectionKind::Tunneled {
-                self.sink.send_reply(
+                self.sink.direct_send_reply(
                     &mut self.context,
                     &mut self.error_counter,
                     &mut self.handler,
@@ -341,7 +341,7 @@ where
                             }
                         }
                         self.sink
-                            .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
+                            .direct_send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
                             .await?;
 
                         yield ();
@@ -353,7 +353,7 @@ where
 
                         let reply = self.handler.on_post_auth(&mut self.context, auth_result).await;
                         self.sink
-                            .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
+                            .direct_send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
                             .await?;
 
                         let produced_context = std::mem::take(&mut self.context);
@@ -404,7 +404,7 @@ where
                     tracing::warn!("Closing after {} without receiving a command", e);
                     #[allow(clippy::expect_used)]
                     self.sink
-                        .send_reply(
+                        .direct_send_reply(
                             &mut self.context,
                             &mut self.error_counter,
                             &mut self.handler,
@@ -427,7 +427,7 @@ where
                                 .on_args_error(ParseArgsError::BufferTooLong { expected, got })
                                 .await;
                             self.sink
-                                .send_reply(
+                                .direct_send_reply(
                                     &mut self.context,
                                     &mut self.error_counter,
                                     &mut self.handler,
@@ -487,6 +487,7 @@ where
                             &mut self.error_counter,
                             &mut self.handler,
                             reply,
+                            &verb,
                         )
                         .await?;
                 }
