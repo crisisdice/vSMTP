@@ -451,33 +451,33 @@ where
                 tracing::trace!("<< {:?} ; {:?}", verb, std::str::from_utf8(&args.0));
         
                 let stage = self.handler.get_stage();
-                let reply = match (verb, stage) {
-                    (Verb::Helo, _) => Some(handle_args!(HeloArgs, args, on_helo)),
-                    (Verb::Ehlo, _) => Some(handle_args!(EhloArgs, args, on_ehlo)),
-                    (Verb::Noop, _) => Some(self.handler.on_noop().await),
-                    (Verb::Rset, _) => Some(self.handler.on_rset().await),
-                    (Verb::StartTls, Stage::Connect | Stage::Helo) => {
+                let reply = match (&verb, &stage) {
+                    (&Verb::Helo, _) => Some(handle_args!(HeloArgs, args, on_helo)),
+                    (&Verb::Ehlo, _) => Some(handle_args!(EhloArgs, args, on_ehlo)),
+                    (&Verb::Noop, _) => Some(self.handler.on_noop().await),
+                    (&Verb::Rset, _) => Some(self.handler.on_rset().await),
+                    (&Verb::StartTls, &Stage::Connect | &Stage::Helo) => {
                         Some(self.handler.on_starttls(&mut self.context).await)
                     }
-                    (Verb::Auth, Stage::Connect | Stage::Helo) => {
+                    (&Verb::Auth, &Stage::Connect | &Stage::Helo) => {
                         handle_args!(AuthArgs, args, Option: on_auth)
                     }
-                    (Verb::MailFrom, Stage::Helo | Stage::MailFrom) => {
+                    (&Verb::MailFrom, &Stage::Helo | &Stage::MailFrom) => {
                         Some(handle_args!(MailFromArgs, args, on_mail_from))
                     }
-                    (Verb::RcptTo, Stage::MailFrom | Stage::RcptTo) => {
+                    (&Verb::RcptTo, &Stage::MailFrom | &Stage::RcptTo) => {
                         Some(handle_args!(RcptToArgs, args, on_rcpt_to))
                     }
-                    (Verb::Data, Stage::RcptTo) => {
+                    (&Verb::Data, &Stage::RcptTo) => {
                         self.context.outcome = Some(HandshakeOutcome::Message);
                         Some(self.handler.on_data().await)
                     }
-                    (Verb::Quit, _) => {
+                    (&Verb::Quit, _) => {
                         self.context.outcome = Some(HandshakeOutcome::Quit);
                         Some(self.handler.on_quit().await)
                     }
-                    (Verb::Help, _) => Some(self.handler.on_help(args).await),
-                    (Verb::Unknown, _) => Some(self.handler.on_unknown(args.0).await),
+                    (&Verb::Help, _) => Some(self.handler.on_help(args).await),
+                    (&Verb::Unknown, _) => Some(self.handler.on_unknown(args.0).await),
                     otherwise => Some(self.handler.on_bad_sequence(otherwise).await),
                 };
                 if let Some(reply) = reply {
@@ -494,6 +494,9 @@ where
             }
     
             let produced_context = std::mem::take(&mut self.context);
+            if !self.sink.is_empty() {
+                self.sink.flush().await?;
+            }
             if let Some(done) = produced_context.outcome {
                 return Ok(done);
             }

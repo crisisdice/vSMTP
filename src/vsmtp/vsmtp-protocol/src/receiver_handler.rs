@@ -163,7 +163,7 @@ pub trait ReceiverHandler {
     /// Called when the stage of the transaction (obtained with [`get_stage`](Self::get_stage))
     /// and the command are not compatible.
     #[inline]
-    async fn on_bad_sequence(&mut self, _: (Verb, Stage)) -> Reply {
+    async fn on_bad_sequence(&mut self, _: (&Verb, &Stage)) -> Reply {
         #[allow(clippy::expect_used)]
         "503 Bad sequence of commands\r\n"
             .parse()

@@ -18,6 +18,8 @@ use crate::{receiver::ErrorCounter, ReceiverContext, ReceiverHandler, Verb};
 use tokio::io::AsyncWriteExt;
 use vsmtp_common::Reply;
 
+/// writer used for pipelining
+/// it keep a buffer of answers
 #[warn(clippy::module_name_repetitions)]
 pub struct WindowWriter<W: tokio::io::AsyncWrite + Unpin + Send> {
     inner: W,
@@ -33,6 +35,7 @@ impl<W: tokio::io::AsyncWrite + Unpin + Send> AsMut<W> for WindowWriter<W> {
 }
 
 impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
+    // Create a new WindowWriter
     #[inline]
     #[must_use]
     pub fn new(inner: W) -> Self {
@@ -54,8 +57,9 @@ impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
         self.inner
     }
 
-    pub fn reserve(&mut self, size: usize) {
-        self.buffer.reserve(size);
+    /// check if the internal writer is empty
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
     }
 
     /// Send the buffer to the client.
@@ -79,6 +83,7 @@ impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
         self.inner.write_all(buffer).await
     }
 
+    /// update error counters and return appropriate message based on these counters.
     async fn handle_error<T: ReceiverHandler + Send>(
         &mut self,
         ctx: &mut ReceiverContext,
@@ -111,9 +116,10 @@ impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
         reply: Reply,
     ) -> std::io::Result<()> {
         let final_reply = self.handle_error(ctx, error_counter, handler, reply).await;
-        return self.write_all(final_reply.as_ref()).await;
+        self.write_all(final_reply.as_ref()).await
     }
 
+    /// analyze the message if it can be stored in a buffer. It is send directly otherwise.
     pub async fn send_reply<T: ReceiverHandler + Send>(
         &mut self,
         ctx: &mut ReceiverContext,
@@ -123,18 +129,21 @@ impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
         verb: &Verb,
     ) -> std::io::Result<()> {
         let final_reply = self.handle_error(ctx, error_counter, handler, reply).await;
-        if self.unbufferable_commands.contains(&verb) {
+        if self.unbufferable_commands.contains(verb) {
             return self.write_all(final_reply.as_ref()).await;
         }
         self.buffer.push(final_reply);
-        return Ok(());
+        Ok(())
     }
 
-    async fn flush<T: ReceiverHandler + Send>(
+    /// send all buffered response in one go.
+    pub async fn flush(
         &mut self,
     ) -> std::io::Result<()> {
         let full_response: Vec<String> = self.buffer.clone().into_iter().map(|r| r.to_string()).collect();
-        return self.write_all(full_response.concat().as_str()).await;
+        self.write_all(full_response.concat().as_str()).await?;
+        self.buffer.clear();
+        Ok(())
     }
 }
 
@@ -217,5 +226,13 @@ impl<W: tokio::io::AsyncWrite + Unpin + Send> Writer<W> {
         }
 
         self.write_all(reply.as_ref()).await
+    }
+}
+
+mod tests {
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    async fn window_writer_basic_send() {
+
     }
 }
