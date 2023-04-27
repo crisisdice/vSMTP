@@ -17,6 +17,7 @@
 
 use crate::{command::Command, command::Batch, Error, UnparsedArgs, Verb};
 use tokio::io::AsyncReadExt;
+use tokio_stream::StreamExt;
 use vsmtp_common::Reply;
 
 fn find(bytes: &[u8], search: &[u8]) -> Option<usize> {
@@ -58,15 +59,6 @@ impl<'x, R> ReaderWindow<'x, R>
 where
     R: tokio::io::AsyncRead + Unpin + Send,
 {
-    fn get_remaining(& mut self) -> Option<bytes::BytesMut> {
-        if self.buffer.is_empty() {
-            None
-        } else {
-            self.n = 0;
-            Some(self.buffer.split_to(self.buffer.len()))
-        }
-    }
-
     fn flush_window<'a: 'x>(
         &'a mut self
     ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + 'a {
@@ -76,13 +68,13 @@ where
                     let out = self.buffer.split_to(pos + 2);
                     self.n -= out.len();
                     yield Vec::<u8>::from(out);
+                    if self.buffer.is_empty() {
+                        return;
+                    }
                 } else {
                     self.buffer.reserve(self.additional_reserve);
                     let read_size = self.inner.read_buf(&mut self.buffer).await?;
                     if read_size == 0 {
-                        if let Some(remaining_buffer) = self.get_remaining() {
-                            yield Vec::<u8>::from(remaining_buffer);
-                        }
                         return;
                     }
                     self.n += read_size;
@@ -136,14 +128,17 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
         &mut self
     ) -> impl tokio_stream::Stream<Item = std::io::Result<Batch>> + '_ {
         async_stream::stream! {
-            let mut batch: Batch = vec![];
-            let mut window_reader = self.to_window_reader();
+            loop {
+                let mut batch: Batch = vec![];
+                let mut window_reader = self.to_window_reader();
 
-            for await window in window_reader.flush_window() {
-                let window = window?;
-                batch.push(parse_command_line(&window));
+                let window_content = window_reader.flush_window();
+                tokio::pin!(window_content);
+                while let Some(cmd) = window_content.next().await {
+                    batch.push(parse_command_line(&cmd?));
+                }
+                yield Ok(batch);
             }
-            yield Ok(batch);
         }
     }
 

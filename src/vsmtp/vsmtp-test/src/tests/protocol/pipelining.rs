@@ -15,7 +15,6 @@
  *
 */
 
-use crate::config;
 use crate::run_test;
 
 run_test! {
@@ -26,8 +25,12 @@ run_test! {
     ],
     expected = [
         "220 testserver.com Service ready\r\n",
-        "250 Ok\r\n",
+        "250-testserver.com\r\n",
+        "250-STARTTLS\r\n",
+        "250-8BITMIME\r\n",
+        "250-SMTPUTF8\r\n",
         "250 PIPELINING\r\n",
+
         "221 Service closing transmission channel\r\n",
     ],
 }
@@ -39,17 +42,19 @@ run_test! {
         "MAIL FROM:<john@doe>\r\n\
         RCPT TO:<galvin@tis.com>\r\n\
         DATA\r\n",
-        &("X".repeat(10) + ".\r\n"),
+        &("X".repeat(10) + "\r\n.\r\n"),
         "QUIT\r\n",
     ],
     expected = [
         "220 testserver.com Service ready\r\n",
-        "250 Ok\r\n",
+        "250-testserver.com\r\n",
+        "250-STARTTLS\r\n",
+        "250-8BITMIME\r\n",
+        "250-SMTPUTF8\r\n",
         "250 PIPELINING\r\n",
         "250 Ok\r\n\
         250 Ok\r\n\
-        250 Ok\r\n",
-        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n",
     ],

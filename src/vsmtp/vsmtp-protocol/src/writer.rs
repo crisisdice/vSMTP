@@ -130,6 +130,9 @@ impl <W: tokio::io::AsyncWrite + Unpin + Send> WindowWriter<W> {
     ) -> std::io::Result<()> {
         let final_reply = self.handle_error(ctx, error_counter, handler, reply).await;
         if self.unbufferable_commands.contains(verb) {
+            if !self.buffer.is_empty() {
+                self.flush().await?;
+            }
             return self.write_all(final_reply.as_ref()).await;
         }
         self.buffer.push(final_reply);
