@@ -4,5 +4,13 @@ export const domain = fqdn("example.com");
 // Mailboxes.
 export const foo = address("foo@example.com");
 export const baz = address("baz@example.com");
+export const baz = address("root@example.com");
 
-export const addresses = [foo, baz];
+export const addresses = [foo, baz, root];
+
+// Paths for quarantines.
+export const virus_queue = "virus";
+export const untrusted_queue = "untrusted";
+
+// A user blacklist file
+// export const blacklist = file("domain-available/example.com/blacklist.txt", "fqdn");

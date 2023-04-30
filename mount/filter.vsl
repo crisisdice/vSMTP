@@ -1,11 +1,25 @@
+import "objects/test" as object_test;
+
 #{
-    connect: [
-        rule "accept any connection" || state::accept(code(100, "welcome to the test")),
+    mail: [
+      rule "do not deliver untrusted domains" || { state::next() },
     ],
 
-    mail: [
-        rule "accept any sender" || state::accept(code(100, `We accept everybody, even '${ctx::mail_from().domain}'`)),
+    delivery: [
+      action "setup delivery" || {
+        for rcpt in ctx::rcpt_list() {
+          if rcpt in object_test::addresses { transport::mbox(rcpt) }
+        }
+      }
     ],
+
+    // rcpt: [
+    //   rule "anti relaying" || state::deny(),
+    // ],
+
+    // connect: [
+    //     rule "accept any connection" || state::accept(code(100, "welcome to the test")),
+    // ],
 
     // rcpt: [
     //     rule "unhandled domain" || state::deny(code(550, `unhandled domain. sender='${ctx::mail_from().domain}', rcpt='${ctx::rcpt().domain}'`)),
