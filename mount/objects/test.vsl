@@ -1,0 +1,8 @@
+// Doe's family domain name.
+export const domain = fqdn("example.com");
+
+// Mailboxes.
+export const foo = address("foo@example.com");
+export const baz = address("baz@example.com");
+
+export const addresses = [foo, baz];
