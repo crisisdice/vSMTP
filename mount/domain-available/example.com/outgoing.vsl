@@ -1,0 +1,12 @@
+import "objects/test" as object_test;
+
+#{
+
+    delivery: [
+      action "setup delivery" || {
+        for rcpt in ctx::rcpt_list() {
+          if rcpt in object_test::addresses { transport::mbox(rcpt) }
+        }
+      }
+    ],
+}

@@ -2,10 +2,12 @@
 FROM vsmpt-base AS base
 FROM debian AS runtime
 
-RUN apt-get update && apt-get install -y
-RUN apt-get install vim python3 telnet net-tools -y
+# curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# apt install pkg-config build-essential sasl2-bin
 
-# RUN apk upgrade --no-cache && apk add --no-cache libc6-compat
+RUN apt-get update && apt-get install -y
+# RUN apt-get install vim python3 telnet net-tools mail -y
+RUN apt-get install mailutils -y
 
 RUN addgroup vsmtp && \
     adduser --shell /sbin/nologin --disabled-password \
