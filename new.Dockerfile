@@ -4,6 +4,9 @@ FROM debian AS runtime
 
 # curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # apt install pkg-config build-essential sasl2-bin
+# $ sudo adduser --system --shell /usr/sbin/nologin --no-create-home \
+#    --uid 9999 --group --disabled-password --disabled-login vsmtp
+
 
 RUN apt-get update && apt-get install -y
 # RUN apt-get install vim python3 telnet net-tools mail -y
