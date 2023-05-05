@@ -9,6 +9,7 @@ import "plugins/libwellness_plugin" as test_plugin;
 
     delivery: [
     	action "setup delivery" || {
+	test_plugin::print_stuff(msg::mail());
     	for rcpt in ctx::rcpt_list() {
     	  if rcpt in object_test::addresses { transport::maildir(rcpt) }
     	}
@@ -19,15 +20,13 @@ import "plugins/libwellness_plugin" as test_plugin;
     //   rule "anti relaying" || state::deny(),
     // ],
 
-    connect: [
-	//rule "test plugin" || test_plugin::test(),
-	rule "test plugin" || {
-		test_plugin::print_stuff();
-		//test_plugin::my_command.run();
-		
-		state::next();
-	},
-    ],
+    // connect: [
+    //     //rule "test plugin" || test_plugin::test(),
+    //     rule "test plugin" || {
+    //     	//test_plugin::my_command.run();
+    //     	state::next();
+    //     },
+    // ],
 
     // rcpt: [
     //     rule "unhandled domain" || state::deny(code(550, `unhandled domain. sender='${ctx::mail_from().domain}', rcpt='${ctx::rcpt().domain}'`)),
