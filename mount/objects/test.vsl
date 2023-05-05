@@ -1,12 +1,10 @@
-// Doe's family domain name.
-export const domain = fqdn("example.com");
+export const domain = fqdn("81-28-6-251.cloud-xip.com");
 
 // Mailboxes.
-export const foo = address("foo@example.com");
-export const baz = address("baz@example.com");
-export const root = address("root@example.com");
+export const root = address("root@81-28-6-251.cloud-xip.com");
+export const reader = address("reader@81-28-6-251.cloud-xip.com");
 
-export const addresses = [foo, baz, root];
+export const addresses = [root, reader];
 
 // Paths for quarantines.
 export const virus_queue = "virus";
