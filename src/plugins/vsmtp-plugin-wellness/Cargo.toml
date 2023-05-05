@@ -1,0 +1,13 @@
+[package]
+name = "wellness_plugin"
+version = "0.1.0"
+edition = "2021"
+authors = ["alexanderdaily <alexanderdaily001@gmail.com>"]
+
+[lib]
+# You could also use Rust's unstable ABI with "dylib".
+crate-type = ["cdylib"]
+
+[dependencies]
+rhai = { version = "1.11" }
+rhai-dylib = "0.1.6"
