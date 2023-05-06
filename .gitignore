@@ -13,5 +13,9 @@ perf.data
 perf.data.old
 stacks.folded
 
+#mount
+mount/plugins/libwellness_plugin.so
+mount/certs
+
 *~*
 *#*
