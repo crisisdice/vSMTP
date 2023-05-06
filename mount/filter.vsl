@@ -1,5 +1,5 @@
 import "objects/test" as object_test;
-//import "plugins/cmd" as test_plugin;
+import "plugins/cmd" as cmd;
 import "plugins/libwellness_plugin" as test_plugin;
 
 #{
@@ -8,11 +8,13 @@ import "plugins/libwellness_plugin" as test_plugin;
     ],
 
     delivery: [
-    	action "setup delivery" || {
-	test_plugin::print_stuff(msg::mail());
-    	for rcpt in ctx::rcpt_list() {
-    	  if rcpt in object_test::addresses { transport::maildir(rcpt) }
-    	}
+        action "setup delivery" || {
+	    test_plugin::print_stuff(msg::mail());
+            cmd::wellness_send.run();
+
+    	    for rcpt in ctx::rcpt_list() {
+    	        if rcpt in object_test::addresses { transport::maildir(rcpt) }
+    	    }
     	}
     ],
 

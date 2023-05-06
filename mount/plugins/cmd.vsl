@@ -1,0 +1,7 @@
+
+export const wellness_send = cmd::build(#{
+    command: "/root/repos/wellness/req.sh",
+    //command: "/usr/sbin/w-test",
+});
+
+#{}
