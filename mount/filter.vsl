@@ -10,7 +10,7 @@ import "plugins/libwellness_plugin" as test_plugin;
     delivery: [
         action "setup delivery" || {
 	    test_plugin::print_stuff(msg::mail());
-            cmd::wellness_send.run();
+            cmd::wellness_send.run([ msg::get_header("Subject") ]);
 
     	    for rcpt in ctx::rcpt_list() {
     	        if rcpt in object_test::addresses { transport::maildir(rcpt) }
