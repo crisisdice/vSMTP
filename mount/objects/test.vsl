@@ -1,0 +1,14 @@
+export const domain = fqdn("81-28-6-251.cloud-xip.com");
+
+// Mailboxes.
+export const root = address("root@81-28-6-251.cloud-xip.com");
+export const reader = address("reader@81-28-6-251.cloud-xip.com");
+
+export const addresses = [root, reader];
+
+// Paths for quarantines.
+export const virus_queue = "virus";
+export const untrusted_queue = "untrusted";
+
+// A user blacklist file
+// export const blacklist = file("domain-available/example.com/blacklist.txt", "fqdn");

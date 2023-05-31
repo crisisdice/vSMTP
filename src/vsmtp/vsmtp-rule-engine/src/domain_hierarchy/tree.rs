@@ -22,6 +22,8 @@ use vsmtp_common::status::Status;
 use vsmtp_common::{domain_iter, Domain};
 use vsmtp_config::field::{FieldAppVSL, FieldServerVirtual};
 
+use rhai_dylib::rhai::{ImmutableString};
+
 /// Rules that automatically deny the transaction once run.
 const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../../default/root_filter_rules.rhai");
 const DEFAULT_FALLBACK_RULES: &str = include_str!("../../default/fallback_rules.rhai");
@@ -208,6 +210,7 @@ impl SubDomainHierarchy {
                 filter_path: Some(filter_path),
                 domain_dir,
             } => {
+		println!("plugin: {:?}", std::any::TypeId::of::<ImmutableString>());
                 tracing::info!("Analyzing vSL rules at {}", filter_path.display());
 
                 Ok(Self {
