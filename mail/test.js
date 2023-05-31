@@ -4,10 +4,10 @@ const nodemailer = require("nodemailer");
 // async..await is not allowed in global scope, must use a wrapper
 async function main() {
   let transporter = nodemailer.createTransport({
-    host: "localhost",
-    port: 587,
-    secure: false, // true for 465, false for other ports
-    ignoreTLS: true,
+    host: "81-28-6-251.cloud-xip.com",
+    port: 465,
+    secure: true, // true for 465, false for other ports
+    //ignoreTLS: ,
     // auth: {
     //   user: "root",
     //   pass: "root",
@@ -18,19 +18,19 @@ async function main() {
 
   console.log('transport created')
 
-  transporter.verify(function (error, success) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Server is ready to take our messages");
-    }
-  });
+  // transporter.verify(function (error, success) {
+  //   if (error) {
+  //     console.log(error);
+  //   } else {
+  //     console.log("Server is ready to take our messages");
+  //   }
+  // });
 
   // send mail with defined transport object
   let info = await transporter.sendMail({
-    from: 'foo@example.com', // sender address
-    to: "root@example.com", // list of receivers
-    subject: "Hello ✔", // Subject line
+    from: 'alexanderdaily001@gmail.com', // sender address
+    to: "reader@81-28-6-251.cloud-xip.com", // list of receivers
+    subject: "2023-04-16", // Subject line
     text: "Hello world?", // plain text body
     html: "<b>Hello world?</b>", // html body
   });
